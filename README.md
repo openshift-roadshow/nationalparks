@@ -1,0 +1,26 @@
+= NationalParks backend application
+This application is a backend that provides geolocation information about NationalParks. The information is stored in a mongodb
+
+
+== Installation
+As the application needs to interact with openshift's API, you'll need to provide some permissions to the default ServiceAccount for that.
+
+Assuming you're using the project <roadshow>:
+----
+oc new-project roadshow
+oc policy add-role-to-user view system:serviceaccount:roadshow:default
+oc create -f ./ose3/application-template.json
+oc new-app nationalparks
+----
+
+There's some options that can be parameterized:
+
+* APPLICATION_NAME: Name of the application
+* MAVEN_MIRROR_URL: Url of a maven mirror 
+* APPLICATION_HOSTNAME: Hostname/route to access your application
+
+Example:
+
+----
+oc new-app nationalparks -p APPLICATION_HOSTNAME=nationalparks-roadshow.127.0.0.1.xip.io -p MAVEN_MIRROR_URL=http://nexus.ci:8081/content/groups/public
+----
