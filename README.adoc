@@ -6,6 +6,7 @@ This application is a backend that provides geolocation information about Nation
 As the application needs to interact with openshift's API, you'll need to provide some permissions to the default ServiceAccount for that.
 
 Assuming you're using the project <roadshow>:
+
 ----
 oc new-project roadshow
 oc policy add-role-to-user view system:serviceaccount:roadshow:default
