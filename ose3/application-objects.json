@@ -27,7 +27,7 @@
         "db.password": "mongodb",
         "db.name": "mongodb",
         "db.properties": "db.user=mongodb\ndb.password=mongodb\ndb.name=mongodb",
-        "application.properties": "spring.data.mongodb.uri=mongodb://mongodb:mongodb@$mongodb:27017/mongodb"
+        "application.properties": "spring.data.mongodb.uri=mongodb://mongodb:mongodb@$mongodb-nationalparks:27017/mongodb"
       }
     },
     {
@@ -52,7 +52,7 @@
       "kind": "Service",
       "apiVersion": "v1",
       "metadata": {
-        "name": "mongodb",
+        "name": "mongodb-nationalparks",
         "labels": {
           "component": "mongodb"
         }
@@ -441,7 +441,7 @@
           "type": "parksmap-backend"
         },
         "annotations": {
-          "service.alpha.openshift.io/dependencies": "[{\"name\":\"mongodb\",\"namespace\":\"\",\"kind\":\"Service\"}]"
+          "service.alpha.openshift.io/dependencies": "[{\"name\":\"mongodb-nationalparks\",\"namespace\":\"\",\"kind\":\"Service\"}]"
         }
       },
       "spec": {

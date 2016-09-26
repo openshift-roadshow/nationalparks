@@ -29,7 +29,7 @@
       "description": "The name for the mongodb application.",
       "displayName": "Mongodb App",
       "name": "MONGODB_APPLICATION_NAME",
-      "value": "mongodb",
+      "value": "mongodb-nationalparks",
       "required": true
     },
     {
