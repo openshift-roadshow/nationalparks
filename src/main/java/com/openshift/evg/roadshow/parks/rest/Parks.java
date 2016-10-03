@@ -33,7 +33,7 @@ public class Parks {
     }
 
     @CrossOrigin
-    @RequestMapping(method = RequestMethod.GET, value = "/", produces = "application/json")
+    @RequestMapping(method = RequestMethod.GET, value = "/all", produces = "application/json")
     public List<Park> getAllParks() {
         System.out.println("[DEBUG] getAllParks");
 

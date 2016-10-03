@@ -9,7 +9,6 @@ package com.openshift.evg.roadshow.rest.gateway.model;
 public class Backend {
     private String id;
     private String displayName;
-    private String service;
 
     private Coordinates center = new Coordinates("0", "0");
     private int zoom = 1;
@@ -18,16 +17,14 @@ public class Backend {
     public Backend() {
     }
 
-    public Backend(String id, String displayName, String service) {
+    public Backend(String id, String displayName) {
         this.id = id;
         this.displayName = displayName;
-        this.service = service;
     }
 
-    public Backend(String id, String displayName, String service, Coordinates center, int zoom) {
+    public Backend(String id, String displayName, Coordinates center, int zoom) {
         this.id = id;
         this.displayName = displayName;
-        this.service = service;
         this.center = center;
         this.zoom = zoom;
     }
@@ -46,14 +43,6 @@ public class Backend {
 
     public void setDisplayName(String displayName) {
         this.displayName = displayName;
-    }
-
-    public String getService() {
-        return service;
-    }
-
-    public void setService(String service) {
-        this.service = service;
     }
 
     public Coordinates getCenter() {
@@ -77,7 +66,6 @@ public class Backend {
         return "Backend{" +
                 "id='" + id + '\'' +
                 ", displayName='" + displayName + '\'' +
-                ", service='" + service + '\'' +
                 ", center='" + center + '\'' +
                 ", zoom='" + zoom + '\'' +
                 '}';
