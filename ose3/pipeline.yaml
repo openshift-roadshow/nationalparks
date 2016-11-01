@@ -1,10 +1,117 @@
----
-kind: "BuildConfig"
-apiVersion: "v1"
-metadata:
-  name: "nationalparks-pipeline"
-spec:
-  strategy:
-    type: "JenkinsPipeline"
-    jenkinsPipelineStrategy:
-      jenkinsfile: "node {\n  stage 'Build'\n  openshiftBuild(buildConfig: 'nationalparks', showBuildLogs: 'true')\n  \n  stage 'Deploy'\n  openshiftDeploy(deploymentConfig: 'nationalparks')\n}"
+apiVersion: v1
+items:
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    labels:
+      app: nationalparks-live
+    name: nationalparks-live
+  spec:
+    replicas: 1
+    selector:
+      app: nationalparks-live
+    strategy:
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        labels:
+          app: nationalparks-live
+      spec:
+        containers:
+        - env:
+          - name: KUBERNETES_NAMESPACE
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.namespace
+          image: nationalparks
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /ws/healthz/
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: nationalparks
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /ws/healthz/
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+    test: false
+    triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - nationalparks
+        from:
+          kind: ImageStreamTag
+          name: nationalparks:live
+      type: ImageChange
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: nationalparks-live
+    name: nationalparks-live
+  spec:
+    ports:
+    - name: web
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    selector:
+      deploymentconfig: nationalparks-live
+    sessionAffinity: None
+    type: ClusterIP
+- apiVersion: v1
+  kind: Route
+  metadata:
+    annotations:
+    labels:
+      app: nationalparks-live
+    name: nationalparks-live
+  spec:
+    to:
+      kind: Service
+      name: nationalparks-live
+      weight: 100
+  port:
+    targetPort: web
+- kind: "BuildConfig"
+  apiVersion: "v1"
+  metadata:
+    name: "nationalparks-pipeline"
+  spec:
+    strategy:
+      type: "JenkinsPipeline"
+      jenkinsPipelineStrategy:
+        jenkinsfile: "node {\n  stage 'Build'\n  openshiftBuild(buildConfig: 'nationalparks', showBuildLogs: 'true')\n  \n  stage 'Deploy Dev'\n  openshiftDeploy(deploymentConfig: 'nationalparks')\n\n  stage 'Test'\n  echo 'test'\n  \n  stage 'Promote to Live'\n  input 'Promote the Dev image to Live?'\n  openshiftTag(srcStream: 'nationalparks', srcTag: 'latest', destStream: 'nationalparks', destTag: 'live')\n}"
+kind: List
+metadata: {}
