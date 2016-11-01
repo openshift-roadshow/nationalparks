@@ -112,6 +112,6 @@ items:
     strategy:
       type: "JenkinsPipeline"
       jenkinsPipelineStrategy:
-        jenkinsfile: "node {\n  stage 'Build'\n  openshiftBuild(buildConfig: 'nationalparks', showBuildLogs: 'true')\n  \n  stage 'Deploy Dev'\n  openshiftDeploy(deploymentConfig: 'nationalparks')\n\n  stage 'Test'\n  echo 'test'\n  \n  stage 'Promote to Live'\n  input 'Promote the Dev image to Live?'\n  openshiftTag(srcStream: 'nationalparks', srcTag: 'latest', destStream: 'nationalparks', destTag: 'live')\n}"
+        jenkinsfile: "node {\n  stage 'Build'\n  openshiftBuild(buildConfig: 'nationalparks', showBuildLogs: 'true')\n  \n  stage 'Deploy Dev'\n  openshiftDeploy(deploymentConfig: 'nationalparks')\n\n  stage 'Test'\n  sh 'curl -s http://$NATIONALPARKS_SERVICE_HOST:$NATIONALPARKS_SERVICE_PORT/ws/data/all | grep -q \"Grand Canyon National Park\"'\n  \n  stage 'Deploy Live'\n  input 'Promote the Dev image to Live?'\n  openshiftTag(srcStream: 'nationalparks', srcTag: 'latest', destStream: 'nationalparks', destTag: 'live')\n}"
 kind: List
 metadata: {}
