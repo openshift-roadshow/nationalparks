@@ -79,6 +79,7 @@ items:
   metadata:
     labels:
       app: nationalparks-live
+      type: parksmap-backend
     name: nationalparks-live
   spec:
     ports:
