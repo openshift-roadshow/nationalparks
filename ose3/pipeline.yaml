@@ -1,6 +1,139 @@
 apiVersion: v1
 items:
 - apiVersion: v1
+  data:
+    application.properties: spring.data.mongodb.uri=mongodb://mongodb:CUAMdKnX@mongodb-live:27017/mongodb
+    db.name: mongodb
+    db.password: CUAMdKnX
+    db.properties: |-
+      db.user=mongodb
+      db.password=CUAMdKnX
+      db.name=mongodb
+    db.user: mongodb
+  kind: ConfigMap
+  metadata:
+    labels:
+      component: config
+    name: nationalparks-live
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      component: mongodb-live
+    name: mongodb-live
+  spec:
+    ports:
+    - name: mongo
+      port: 27017
+      protocol: TCP
+      targetPort: 27017
+    selector:
+      name: mongodb-live
+    sessionAffinity: None
+    type: ClusterIP
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    labels:
+      component: mongodb-live
+    name: mongodb-live
+  spec:
+    replicas: 1
+    selector:
+      name: mongodb-live
+    strategy:
+      recreateParams:
+        timeoutSeconds: 600
+      resources: {}
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          name: mongodb-live
+      spec:
+        containers:
+        - env:
+          - name: KUBERNETES_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: MONGODB_USER
+            valueFrom:
+              configMapKeyRef:
+                key: db.user
+                name: nationalparks-live
+          - name: MONGODB_PASSWORD
+            valueFrom:
+              configMapKeyRef:
+                key: db.password
+                name: nationalparks-live
+          - name: MONGODB_DATABASE
+            valueFrom:
+              configMapKeyRef:
+                key: db.name
+                name: nationalparks-live
+          - name: MONGODB_ADMIN_PASSWORD
+            valueFrom:
+              configMapKeyRef:
+                key: db.password
+                name: nationalparks-live
+          image: mongodb-live
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: 27017
+            timeoutSeconds: 1
+          name: mongodb-live
+          ports:
+          - containerPort: 27017
+            protocol: TCP
+          readinessProbe:
+            exec:
+              command:
+              - /bin/sh
+              - -i
+              - -c
+              - mongo 127.0.0.1:27017/$MONGODB_DATABASE -u $MONGODB_USER -p $MONGODB_PASSWORD
+                --eval="quit()"
+            failureThreshold: 3
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            limits:
+              memory: 512Mi
+          securityContext:
+            capabilities: {}
+            privileged: false
+          terminationMessagePath: /dev/termination-log
+          volumeMounts:
+          - mountPath: /var/lib/mongodb/data
+            name: mongodb-data
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - emptyDir: {}
+          name: mongodb-data
+    test: false
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - mongodb-live
+        from:
+          kind: ImageStreamTag
+          name: mongodb:3.2
+          namespace: openshift
+      type: ImageChange
+    - type: ConfigChange
+- apiVersion: v1
   kind: DeploymentConfig
   metadata:
     labels:
@@ -72,7 +205,7 @@ items:
     triggers:
     - type: ConfigChange
     - imageChangeParams:
-        automatic: true
+        automatic: false
         containerNames:
         - nationalparks
         from:
@@ -86,6 +219,8 @@ items:
       app: nationalparks-live
       type: parksmap-backend
     name: nationalparks-live
+    annotations:
+      service.alpha.openshift.io/dependencies: '[{"name":"mongodb-live","namespace":"","kind":"Service"}]'
   spec:
     ports:
     - name: web
