@@ -1,0 +1,720 @@
+apiVersion: v1
+kind: Template
+labels:
+metadata:
+  annotations:
+    description: Application template for ParksMap and NationalParks backend with CI/CD Pipeline
+    iconClass: icon-java
+  name: nationalpark-pipeline
+objects:
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    labels:
+      app: parksmap
+    name: parksmap
+  spec:
+    tags:
+    - annotations:
+      from:
+        kind: DockerImage
+        name: docker.io/openshiftdemos/parksmap:0.4
+      name: "0.4"
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    labels:
+      app: parksmap
+    name: parksmap
+  spec:
+    replicas: 1
+    selector:
+      app: parksmap
+      deploymentconfig: parksmap
+    strategy:
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        labels:
+          app: parksmap
+          deploymentconfig: parksmap
+      spec:
+        containers:
+        - image: parksmap
+          imagePullPolicy: IfNotPresent
+          name: parksmap
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+    test: false
+    triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - parksmap
+        from:
+          kind: ImageStreamTag
+          name: parksmap:0.4
+      type: ImageChange
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: parksmap
+    name: parksmap
+  spec:
+    ports:
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    selector:
+      deploymentconfig: parksmap
+    sessionAffinity: None
+    type: ClusterIP
+- apiVersion: v1
+  kind: Route
+  metadata:
+    labels:
+      app: parksmap
+    name: parksmap
+  spec:
+    port:
+      targetPort: 8080-tcp
+    to:
+      kind: Service
+      name: parksmap
+      weight: 100
+- apiVersion: v1
+  data:
+    application.properties: spring.data.mongodb.uri=mongodb://${MONGODB_USER}:${MONGODB_DEV_PASSWORD}@mongodb-dev:27017/${MONGODB_DATABASE}
+    db.name: ${MONGODB_DATABASE}
+    db.password: ${MONGODB_DEV_PASSWORD}
+    db.properties: |-
+      db.user=${MONGODB_USER}
+      db.password=${MONGODB_DEV_PASSWORD}
+      db.name=${MONGODB_DATABASE}
+    db.user: ${MONGODB_USER}
+  kind: ConfigMap
+  metadata:
+    labels:
+      component: config
+    name: nationalparks-dev
+- apiVersion: v1
+  data:
+    application.properties: spring.data.mongodb.uri=mongodb://${MONGODB_USER}:${MONGODB_LIVE_PASSWORD}@mongodb-dev:27017/${MONGODB_DATABASE}
+    db.name: ${MONGODB_DATABASE}
+    db.password: ${MONGODB_LIVE_PASSWORD}
+    db.properties: |-
+      db.user=${MONGODB_USER}
+      db.password=${MONGODB_LIVE_PASSWORD}
+      db.name=${MONGODB_DATABASE}
+    db.user: ${MONGODB_USER}
+  kind: ConfigMap
+  metadata:
+    labels:
+      component: config
+    name: nationalparks-live
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: s2i-java
+  spec:
+    tags:
+    - from:
+        kind: DockerImage
+        name: jorgemoralespou/s2i-java
+      name: latest
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      component: mongodb-dev
+    name: mongodb-dev
+  spec:
+    ports:
+    - name: mongo
+      port: 27017
+      protocol: TCP
+      targetPort: 27017
+    selector:
+      name: mongodb-dev
+    sessionAffinity: None
+    type: ClusterIP
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    labels:
+      component: mongodb-dev
+    name: mongodb-dev
+  spec:
+    replicas: 1
+    selector:
+      name: mongodb-dev
+    strategy:
+      recreateParams:
+        timeoutSeconds: 600
+      resources: {}
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          name: mongodb-dev
+      spec:
+        containers:
+        - env:
+          - name: KUBERNETES_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: MONGODB_USER
+            valueFrom:
+              configMapKeyRef:
+                key: db.user
+                name: nationalparks-dev
+          - name: MONGODB_PASSWORD
+            valueFrom:
+              configMapKeyRef:
+                key: db.password
+                name: nationalparks-dev
+          - name: MONGODB_DATABASE
+            valueFrom:
+              configMapKeyRef:
+                key: db.name
+                name: nationalparks-dev
+          - name: MONGODB_ADMIN_PASSWORD
+            valueFrom:
+              configMapKeyRef:
+                key: db.password
+                name: nationalparks-dev
+          image: mongodb-dev
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: 27017
+            timeoutSeconds: 1
+          name: mongodb-dev
+          ports:
+          - containerPort: 27017
+            protocol: TCP
+          readinessProbe:
+            exec:
+              command:
+              - /bin/sh
+              - -i
+              - -c
+              - mongo 127.0.0.1:27017/$MONGODB_DATABASE -u $MONGODB_USER -p $MONGODB_PASSWORD
+                --eval="quit()"
+            failureThreshold: 3
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            limits:
+              memory: 512Mi
+          securityContext:
+            capabilities: {}
+            privileged: false
+          terminationMessagePath: /dev/termination-log
+          volumeMounts:
+          - mountPath: /var/lib/mongodb/data
+            name: mongodb-data
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - emptyDir: {}
+          name: mongodb-data
+    test: false
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - mongodb-dev
+        from:
+          kind: ImageStreamTag
+          name: mongodb:3.2
+          namespace: openshift
+      type: ImageChange
+    - type: ConfigChange
+- apiVersion: v1
+  kind: ImageStream
+  metadata:
+    name: nationalparks-dev
+  spec:
+    tags:
+    - name: latest
+- apiVersion: v1
+  kind: BuildConfig
+  metadata:
+    labels:
+      build: nationalparks-dev
+    name: nationalparks-dev
+  spec:
+    output:
+      to:
+        kind: ImageStreamTag
+        name: nationalparks-dev:latest
+    postCommit: {}
+    resources: {}
+    runPolicy: Serial
+    source:
+      git:
+        ref: ${GIT_REF}
+        uri: ${GIT_URI}
+      type: Git
+    strategy:
+      sourceStrategy:
+        env:
+        - name: MAVEN_ARGS
+          value: clean install spring-boot:repackage -DskipTests -Dcom.redhat.xpaas.repo.redhatga
+        - name: MAVEN_MIRROR_URL
+          value: ${MAVEN_MIRROR_URL}
+        from:
+          kind: ImageStreamTag
+          name: s2i-java:latest
+        incremental: false
+      type: Source
+    triggers:
+    - github:
+        secret: ${GITHUB_TRIGGER_SECRET}
+      type: GitHub
+    - generic:
+        secret: ${GENERIC_TRIGGER_SECRET}
+      type: Generic
+    - type: ConfigChange
+    - type: ImageChange
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    labels:
+      component: nationalparks-dev
+    name: nationalparks-dev
+  spec:
+    replicas: 1
+    selector:
+      component: nationalparks-dev
+    strategy:
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        post:
+          execNewPod:
+            command:
+            - curl
+            - -s
+            - http://nationalparks-dev:8080/ws/data/load
+            containerName: nationalparks-dev
+          failurePolicy: Ignore
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+      type: Rolling
+    template:
+      metadata:
+        labels:
+          component: nationalparks-dev
+      spec:
+        containers:
+        - env:
+          - name: KUBERNETES_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          image: nationalparks-dev
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /ws/healthz/
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: nationalparks-dev
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /ws/healthz/
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+    test: false
+    triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - nationalparks-dev
+        from:
+          kind: ImageStreamTag
+          name: nationalparks-dev:latest
+      type: ImageChange
+- apiVersion: v1
+  kind: Service
+  metadata:
+    annotations:
+      service.alpha.openshift.io/dependencies: '[{"name":"mongodb-dev","namespace":"","kind":"Service"}]'
+    labels:
+      component: nationalparks-dev
+    name: nationalparks-dev
+  spec:
+    ports:
+    - name: 8080-tcp
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    selector:
+      component: nationalparks-dev
+    sessionAffinity: None
+    type: ClusterIP
+- apiVersion: v1
+  kind: Route
+  metadata:
+    labels:
+      component: nationalparks-dev
+    name: nationalparks-dev
+  spec:
+    port:
+      targetPort: 8080-tcp
+    to:
+      kind: Service
+      name: nationalparks-dev
+      weight: 100
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      component: mongodb-live
+    name: mongodb-live
+  spec:
+    ports:
+    - name: mongo
+      port: 27017
+      protocol: TCP
+      targetPort: 27017
+    selector:
+      name: mongodb-live
+    sessionAffinity: None
+    type: ClusterIP
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    labels:
+      component: mongodb-live
+    name: mongodb-live
+  spec:
+    replicas: 1
+    selector:
+      name: mongodb-live
+    strategy:
+      recreateParams:
+        timeoutSeconds: 600
+      resources: {}
+      type: Recreate
+    template:
+      metadata:
+        labels:
+          name: mongodb-live
+      spec:
+        containers:
+        - env:
+          - name: KUBERNETES_NAMESPACE
+            valueFrom:
+              fieldRef:
+                fieldPath: metadata.namespace
+          - name: MONGODB_USER
+            valueFrom:
+              configMapKeyRef:
+                key: db.user
+                name: nationalparks-live
+          - name: MONGODB_PASSWORD
+            valueFrom:
+              configMapKeyRef:
+                key: db.password
+                name: nationalparks-live
+          - name: MONGODB_DATABASE
+            valueFrom:
+              configMapKeyRef:
+                key: db.name
+                name: nationalparks-live
+          - name: MONGODB_ADMIN_PASSWORD
+            valueFrom:
+              configMapKeyRef:
+                key: db.password
+                name: nationalparks-live
+          image: mongodb-live
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            successThreshold: 1
+            tcpSocket:
+              port: 27017
+            timeoutSeconds: 1
+          name: mongodb-live
+          ports:
+          - containerPort: 27017
+            protocol: TCP
+          readinessProbe:
+            exec:
+              command:
+              - /bin/sh
+              - -i
+              - -c
+              - mongo 127.0.0.1:27017/$MONGODB_DATABASE -u $MONGODB_USER -p $MONGODB_PASSWORD
+                --eval="quit()"
+            failureThreshold: 3
+            initialDelaySeconds: 3
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources:
+            limits:
+              memory: 512Mi
+          securityContext:
+            capabilities: {}
+            privileged: false
+          terminationMessagePath: /dev/termination-log
+          volumeMounts:
+          - mountPath: /var/lib/mongodb/data
+            name: mongodb-data
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+        volumes:
+        - emptyDir: {}
+          name: mongodb-data
+    test: false
+    triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+        - mongodb-live
+        from:
+          kind: ImageStreamTag
+          name: mongodb:3.2
+          namespace: openshift
+      type: ImageChange
+    - type: ConfigChange
+- apiVersion: v1
+  kind: DeploymentConfig
+  metadata:
+    labels:
+      app: nationalparks-live
+    name: nationalparks-live
+  spec:
+    replicas: 1
+    selector:
+      app: nationalparks-live
+    strategy:
+      resources: {}
+      rollingParams:
+        intervalSeconds: 1
+        maxSurge: 25%
+        maxUnavailable: 25%
+        timeoutSeconds: 600
+        updatePeriodSeconds: 1
+        post:
+          failurePolicy: Ignore
+          execNewPod:
+            command: ["curl", "-s", "http://nationalparks-live:8080/ws/data/load"]
+            containerName: nationalparks-live
+      type: Rolling
+    template:
+      metadata:
+        labels:
+          app: nationalparks-live
+      spec:
+        containers:
+        - env:
+          - name: KUBERNETES_NAMESPACE
+            valueFrom:
+              fieldRef:
+                apiVersion: v1
+                fieldPath: metadata.namespace
+          image: nationalparks
+          imagePullPolicy: IfNotPresent
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /ws/healthz/
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          name: nationalparks
+          ports:
+          - containerPort: 8080
+            protocol: TCP
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /ws/healthz/
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          resources: {}
+          terminationMessagePath: /dev/termination-log
+        dnsPolicy: ClusterFirst
+        restartPolicy: Always
+        securityContext: {}
+        terminationGracePeriodSeconds: 30
+    test: false
+    triggers:
+    - type: ConfigChange
+    - imageChangeParams:
+        automatic: false
+        containerNames:
+        - nationalparks
+        from:
+          kind: ImageStreamTag
+          name: nationalparks:live
+      type: ImageChange
+- apiVersion: v1
+  kind: Service
+  metadata:
+    labels:
+      app: nationalparks-live
+      type: parksmap-backend
+    name: nationalparks-live
+    annotations:
+      service.alpha.openshift.io/dependencies: '[{"name":"mongodb-live","namespace":"","kind":"Service"}]'
+  spec:
+    ports:
+    - name: web
+      port: 8080
+      protocol: TCP
+      targetPort: 8080
+    selector:
+      deploymentconfig: nationalparks-live
+    sessionAffinity: None
+    type: ClusterIP
+- apiVersion: v1
+  kind: Route
+  metadata:
+    annotations:
+    labels:
+      app: nationalparks-live
+    name: nationalparks-live
+  spec:
+    to:
+      kind: Service
+      name: nationalparks-live
+      weight: 100
+  port:
+    targetPort: web
+- kind: "BuildConfig"
+  apiVersion: "v1"
+  metadata:
+    name: "nationalparks-pipeline"
+  spec:
+    strategy:
+      type: "JenkinsPipeline"
+      jenkinsPipelineStrategy:
+        jenkinsfile: "node {\n  stage 'Build'\n  openshiftBuild(buildConfig: 'nationalparks', showBuildLogs: 'true')\n  \n  stage 'Deploy Dev'\n  openshiftDeploy(deploymentConfig: 'nationalparks')\n\n  stage 'Test Dev'\n  sh 'curl -s http://$NATIONALPARKS_SERVICE_HOST:$NATIONALPARKS_SERVICE_PORT/ws/data/load'\n  sh 'curl -s http://$NATIONALPARKS_SERVICE_HOST:$NATIONALPARKS_SERVICE_PORT/ws/data/all | grep -q \"Grand Canyon National Park\"'\n  \n  stage 'Deploy Live'\n  input 'Promote the Dev image to Live?'\n  openshiftTag(srcStream: 'nationalparks', srcTag: 'latest', destStream: 'nationalparks', destTag: 'live')\n}"
+    triggers:
+    - github:
+        secret: 5Mlic4Le
+      type: GitHub
+    - generic:
+        secret: FiArdDBH
+      type: Generic
+parameters:
+- description: Git source URI for application
+  displayName: Git source repository
+  name: GIT_URI
+  required: true
+  value: https://github.com/openshift-roadshow/nationalparks.git
+- description: Git branch/tag reference
+  displayName: Git branch/tag reference
+  name: GIT_REF
+  required: true
+  value: master
+- description: Maven mirror url. If nexus is deployed locally, use nexus url (e.g.
+    http://nexus.ci:8081/content/groups/public/)
+  displayName: Maven mirror url
+  name: MAVEN_MIRROR_URL
+- description: Database name
+  displayName: Database name
+  name: MONGODB_DATABASE
+  required: true
+  value: mongodb
+- description: Disable data file preallocation.
+  name: MONGODB_NOPREALLOC
+- description: Set MongoDB to use a smaller default data file size.
+  name: MONGODB_SMALLFILES
+- description: Runs MongoDB in a quiet mode that attempts to limit the amount of output.
+  name: MONGODB_QUIET
+- description: Database user name
+  displayName: Database user name
+  from: user[a-zA-Z0-9]{3}
+  generate: expression
+  name: MONGODB_USER
+  required: true
+- description: Dev database user password
+  displayName: Dev database user password
+  from: '[a-zA-Z0-9]{8}'
+  generate: expression
+  name: MONGODB_DEV_PASSWORD
+  required: true
+- description: Live database user password
+  displayName: Live database user password
+  from: '[a-zA-Z0-9]{8}'
+  generate: expression
+  name: MONGODB_LIVE_PASSWORD
+  required: true
+- description: Github trigger secret
+  displayName: GitHub Trigger
+  from: '[a-zA-Z0-9]{8}'
+  generate: expression
+  name: GITHUB_TRIGGER_SECRET
+  required: true
+- description: Generic build trigger secret
+  displayName: Generic Trigger
+  from: '[a-zA-Z0-9]{8}'
+  generate: expression
+  name: GENERIC_TRIGGER_SECRET
+  required: true
