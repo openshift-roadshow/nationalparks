@@ -18,6 +18,11 @@ items:
         maxUnavailable: 25%
         timeoutSeconds: 600
         updatePeriodSeconds: 1
+        post:
+          failurePolicy: Ignore
+          execNewPod:
+            command: ["curl", "-s", "http://${APPLICATION_NAME}:8080/ws/data/load"]
+            containerName: ${APPLICATION_NAME}
       type: Rolling
     template:
       metadata:
