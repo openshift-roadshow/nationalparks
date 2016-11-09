@@ -154,8 +154,8 @@ items:
         post:
           failurePolicy: Ignore
           execNewPod:
-            command: ["curl", "-s", "http://${APPLICATION_NAME}:8080/ws/data/load"]
-            containerName: ${APPLICATION_NAME}
+            command: ["curl", "-s", "http://nationalparks-live:8080/ws/data/load"]
+            containerName: nationalparks-live
       type: Rolling
     template:
       metadata:
@@ -253,7 +253,7 @@ items:
     strategy:
       type: "JenkinsPipeline"
       jenkinsPipelineStrategy:
-        jenkinsfile: "node {\n  stage 'Build'\n  openshiftBuild(buildConfig: 'nationalparks', showBuildLogs: 'true')\n  \n  stage 'Deploy Dev'\n  openshiftDeploy(deploymentConfig: 'nationalparks')\n\n  stage 'Test Dev'\n  sh 'curl -s http://$NATIONALPARKS_SERVICE_HOST:$NATIONALPARKS_SERVICE_PORT/ws/data/all | grep -q \"Grand Canyon National Park\"'\n  \n  stage 'Deploy Live'\n  input 'Promote the Dev image to Live?'\n  openshiftTag(srcStream: 'nationalparks', srcTag: 'latest', destStream: 'nationalparks', destTag: 'live')\n}"
+        jenkinsfile: "node {\n  stage 'Build'\n  openshiftBuild(buildConfig: 'nationalparks', showBuildLogs: 'true')\n  \n  stage 'Deploy Dev'\n  openshiftDeploy(deploymentConfig: 'nationalparks')\n\n  stage 'Test Dev'\n  sh 'curl -s http://$NATIONALPARKS_SERVICE_HOST:$NATIONALPARKS_SERVICE_PORT/ws/data/load'\n  sh 'curl -s http://$NATIONALPARKS_SERVICE_HOST:$NATIONALPARKS_SERVICE_PORT/ws/data/all | grep -q \"Grand Canyon National Park\"'\n  \n  stage 'Deploy Live'\n  input 'Promote the Dev image to Live?'\n  openshiftTag(srcStream: 'nationalparks', srcTag: 'latest', destStream: 'nationalparks', destTag: 'live')\n}"
     triggers:
     - github:
         secret: 5Mlic4Le
