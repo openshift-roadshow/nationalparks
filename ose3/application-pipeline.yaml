@@ -55,6 +55,26 @@ objects:
             protocol: TCP
           resources: {}
           terminationMessagePath: /dev/termination-log
+          livenessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /ws/healthz/
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 120
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+          readinessProbe:
+            failureThreshold: 3
+            httpGet:
+              path: /ws/healthz/
+              port: 8080
+              scheme: HTTP
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
         dnsPolicy: ClusterFirst
         restartPolicy: Always
         securityContext: {}
@@ -99,36 +119,6 @@ objects:
       kind: Service
       name: parksmap
       weight: 100
-- apiVersion: v1
-  data:
-    application.properties: spring.data.mongodb.uri=mongodb://${MONGODB_USER}:${MONGODB_DEV_PASSWORD}@mongodb-dev:27017/${MONGODB_DATABASE}
-    db.name: ${MONGODB_DATABASE}
-    db.password: ${MONGODB_DEV_PASSWORD}
-    db.properties: |-
-      db.user=${MONGODB_USER}
-      db.password=${MONGODB_DEV_PASSWORD}
-      db.name=${MONGODB_DATABASE}
-    db.user: ${MONGODB_USER}
-  kind: ConfigMap
-  metadata:
-    labels:
-      component: config
-    name: nationalparks-dev
-- apiVersion: v1
-  data:
-    application.properties: spring.data.mongodb.uri=mongodb://${MONGODB_USER}:${MONGODB_LIVE_PASSWORD}@mongodb-dev:27017/${MONGODB_DATABASE}
-    db.name: ${MONGODB_DATABASE}
-    db.password: ${MONGODB_LIVE_PASSWORD}
-    db.properties: |-
-      db.user=${MONGODB_USER}
-      db.password=${MONGODB_LIVE_PASSWORD}
-      db.name=${MONGODB_DATABASE}
-    db.user: ${MONGODB_USER}
-  kind: ConfigMap
-  metadata:
-    labels:
-      component: config
-    name: nationalparks-live
 - apiVersion: v1
   kind: ImageStream
   metadata:
@@ -182,25 +172,13 @@ objects:
               fieldRef:
                 fieldPath: metadata.namespace
           - name: MONGODB_USER
-            valueFrom:
-              configMapKeyRef:
-                key: db.user
-                name: nationalparks-dev
+            value: ${MONGODB_USER}
           - name: MONGODB_PASSWORD
-            valueFrom:
-              configMapKeyRef:
-                key: db.password
-                name: nationalparks-dev
+            value: ${MONGODB_DEV_PASSWORD}
           - name: MONGODB_DATABASE
-            valueFrom:
-              configMapKeyRef:
-                key: db.name
-                name: nationalparks-dev
+            value: ${MONGODB_DATABASE}
           - name: MONGODB_ADMIN_PASSWORD
-            valueFrom:
-              configMapKeyRef:
-                key: db.password
-                name: nationalparks-dev
+            value: ${MONGODB_DEV_PASSWORD}
           image: mongodb-dev
           imagePullPolicy: IfNotPresent
           livenessProbe:
@@ -260,7 +238,7 @@ objects:
 - apiVersion: v1
   kind: ImageStream
   metadata:
-    name: nationalparks-dev
+    name: nationalparks
   spec:
     tags:
     - name: latest
@@ -274,7 +252,7 @@ objects:
     output:
       to:
         kind: ImageStreamTag
-        name: nationalparks-dev:latest
+        name: nationalparks:latest
     postCommit: {}
     resources: {}
     runPolicy: Serial
@@ -293,7 +271,7 @@ objects:
         from:
           kind: ImageStreamTag
           name: s2i-java:latest
-        incremental: false
+        incremental: true
       type: Source
     triggers:
     - github:
@@ -342,7 +320,15 @@ objects:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
-          image: nationalparks-dev
+          - name: SPRING_DATA_MONGODB_USER
+            value: ${MONGODB_USER}
+          - name: SPRING_DATA_MONGODB_PASSWORD
+            value: ${MONGODB_DEV_PASSWORD}
+          - name: SPRING_DATA_MONGODB_DATABASE
+            value: ${MONGODB_DATABASE}
+          - name: SPRING_DATA_MONGODB_URI
+            value: mongodb://${MONGODB_USER}:${MONGODB_DEV_PASSWORD}@mongodb-dev:27017/${MONGODB_DATABASE}
+          image: ' '
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 3
@@ -378,12 +364,12 @@ objects:
     triggers:
     - type: ConfigChange
     - imageChangeParams:
-        automatic: true
+        automatic: false
         containerNames:
         - nationalparks-dev
         from:
           kind: ImageStreamTag
-          name: nationalparks-dev:latest
+          name: nationalparks:latest
       type: ImageChange
 - apiVersion: v1
   kind: Service
@@ -392,6 +378,7 @@ objects:
       service.alpha.openshift.io/dependencies: '[{"name":"mongodb-dev","namespace":"","kind":"Service"}]'
     labels:
       component: nationalparks-dev
+      app: nationalparks-dev
     name: nationalparks-dev
   spec:
     ports:
@@ -459,25 +446,13 @@ objects:
               fieldRef:
                 fieldPath: metadata.namespace
           - name: MONGODB_USER
-            valueFrom:
-              configMapKeyRef:
-                key: db.user
-                name: nationalparks-live
+            value: ${MONGODB_USER}
           - name: MONGODB_PASSWORD
-            valueFrom:
-              configMapKeyRef:
-                key: db.password
-                name: nationalparks-live
+            value: ${MONGODB_LIVE_PASSWORD}
           - name: MONGODB_DATABASE
-            valueFrom:
-              configMapKeyRef:
-                key: db.name
-                name: nationalparks-live
+            value: ${MONGODB_DATABASE}
           - name: MONGODB_ADMIN_PASSWORD
-            valueFrom:
-              configMapKeyRef:
-                key: db.password
-                name: nationalparks-live
+            value: ${MONGODB_LIVE_PASSWORD}
           image: mongodb-live
           imagePullPolicy: IfNotPresent
           livenessProbe:
@@ -570,7 +545,15 @@ objects:
               fieldRef:
                 apiVersion: v1
                 fieldPath: metadata.namespace
-          image: nationalparks
+          - name: SPRING_DATA_MONGODB_USER
+            value: ${MONGODB_USER}
+          - name: SPRING_DATA_MONGODB_PASSWORD
+            value: ${MONGODB_LIVE_PASSWORD}
+          - name: SPRING_DATA_MONGODB_DATABASE
+            value: ${MONGODB_DATABASE}
+          - name: SPRING_DATA_MONGODB_URI
+            value: mongodb://${MONGODB_USER}:${MONGODB_LIVE_PASSWORD}@mongodb-live:27017/${MONGODB_DATABASE}
+          image: ' '
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 3
@@ -606,9 +589,9 @@ objects:
     triggers:
     - type: ConfigChange
     - imageChangeParams:
-        automatic: false
+        automatic: true
         containerNames:
-        - nationalparks
+        - nationalparks-live
         from:
           kind: ImageStreamTag
           name: nationalparks:live
@@ -654,7 +637,7 @@ objects:
     strategy:
       type: "JenkinsPipeline"
       jenkinsPipelineStrategy:
-        jenkinsfile: "node {\n  stage 'Build'\n  openshiftBuild(buildConfig: 'nationalparks', showBuildLogs: 'true')\n  \n  stage 'Deploy Dev'\n  openshiftDeploy(deploymentConfig: 'nationalparks')\n\n  stage 'Test Dev'\n  sh 'curl -s http://$NATIONALPARKS_SERVICE_HOST:$NATIONALPARKS_SERVICE_PORT/ws/data/load'\n  sh 'curl -s http://$NATIONALPARKS_SERVICE_HOST:$NATIONALPARKS_SERVICE_PORT/ws/data/all | grep -q \"Grand Canyon National Park\"'\n  \n  stage 'Deploy Live'\n  input 'Promote the Dev image to Live?'\n  openshiftTag(srcStream: 'nationalparks', srcTag: 'latest', destStream: 'nationalparks', destTag: 'live')\n}"
+        jenkinsfile: "node {\n  stage 'Build'\n  openshiftBuild(buildConfig: 'nationalparks-dev', showBuildLogs: 'true')\n  \n  stage 'Deploy Dev'\n  openshiftDeploy(deploymentConfig: 'nationalparks-dev')\n\n  stage 'Test Dev'\n  sh 'curl -s http://nationalparks-dev:8080/ws/data/load'\n  sh 'curl -s http://nationalparks-dev:8080/ws/data/all | grep -q \"Grand Canyon National Park\"'\n  \n  stage 'Deploy Live'\n  input 'Promote the Dev image to Live?'\n  openshiftTag(srcStream: 'nationalparks', srcTag: 'latest', destStream: 'nationalparks', destTag: 'live')\n  openshiftDeploy(deploymentConfig: 'nationalparks-live')}"
     triggers:
     - github:
         secret: 5Mlic4Le
@@ -662,6 +645,16 @@ objects:
     - generic:
         secret: FiArdDBH
       type: Generic
+- apiVersion: v1
+  groupNames: null
+  kind: RoleBinding
+  metadata:
+    name: default_edit
+  roleRef:
+    name: view
+  subjects:
+  - kind: ServiceAccount
+    name: default
 parameters:
 - description: Git source URI for application
   displayName: Git source repository
