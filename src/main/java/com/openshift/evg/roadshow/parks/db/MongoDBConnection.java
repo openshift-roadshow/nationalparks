@@ -1,15 +1,16 @@
 package com.openshift.evg.roadshow.parks.db;
 
-import com.mongodb.BasicDBObject;
-import com.mongodb.DBCursor;
+import com.mongodb.*;
 import com.openshift.evg.roadshow.parks.model.Park;
 import org.bson.Document;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.ResourceLoader;
+import org.springframework.data.authentication.UserCredentials;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,11 +28,31 @@ public class MongoDBConnection {
     @Autowired
     private ResourceLoader resourceLoader;
 
-    private final MongoTemplate mongoTemplate;
+    private MongoTemplate mongoTemplate = null;
 
-    @Autowired
-    public MongoDBConnection(MongoTemplate mongoTemplate) {
-        this.mongoTemplate = mongoTemplate;
+    public MongoDBConnection() {
+    }
+
+    @PostConstruct
+    public void initConnection() {
+        String mongoHost = (System.getenv("SPRING_DATA_MONGODB_HOST") == null) ? "127.0.0.1" : System.getenv("MONGODB_SERVICE_HOST");
+        String mongoPort = (System.getenv("SPRING_DATA_MONGODB_PORT") == null) ? "27017" : System.getenv("MONGODB_SERVICE_PORT");
+        String mongoUser = (System.getenv("SPRING_DATA_MONGODB_USERNAME") == null) ? "mongodb" : System.getenv("MONGODB_USER");
+        String mongoPassword = (System.getenv("SPRING_DATA_MONGODB_PASSWORD") == null) ? "mongodb" : System.getenv("MONGODB_PASSWORD");
+        String mongoDBName = (System.getenv("SPRING_DATA_MONGODB_DATABASE") == null) ? "mongodb" : System.getenv("MONGODB_DATABASE");
+
+        try {
+            UserCredentials credential = new UserCredentials(mongoUser, mongoPassword);
+            MongoOptions m = new MongoOptions();
+            m.setConnectTimeout(1000);
+            m.setSocketTimeout(1000);
+            int mPort = Integer.parseInt(mongoPort);
+            mongoTemplate = new MongoTemplate(new Mongo(new ServerAddress(mongoHost, mPort), m), mongoDBName);
+            mongoTemplate.getCollection(COLLECTION).createIndex(new BasicDBObject().append("coordinates", "2d"));
+        } catch (Throwable e) {
+            System.out.println("[ERROR] Creating the mongoTemplate");
+            mongoTemplate = null;
+        }
     }
 
     /*
@@ -95,7 +116,11 @@ public class MongoDBConnection {
      */
     public void clear() {
         System.out.println("[DEBUG] MongoDBConnection.clear()");
-        mongoTemplate.dropCollection(COLLECTION);
+        if (mongoTemplate != null) {
+            mongoTemplate.dropCollection(COLLECTION);
+        } else {
+            System.out.println("[ERROR] mongoTemplate could not be initiallized. No operation with DB will be performed");
+        }
     }
 
 
@@ -104,24 +129,39 @@ public class MongoDBConnection {
      */
     public void init(List<Document> parks) {
         System.out.println("[DEBUG] MongoDBConnection.init(...)");
+        if (mongoTemplate != null) {
+            mongoTemplate.dropCollection(COLLECTION);
+            mongoTemplate.insert(parks, COLLECTION);
+            mongoTemplate.getCollection(COLLECTION).createIndex(new BasicDBObject().append("coordinates", "2d"));
+        } else {
+            System.out.println("[ERROR] mongoTemplate could not be initiallized. No operation with DB will be performed");
+        }
 
-        mongoTemplate.dropCollection(COLLECTION);
-        mongoTemplate.insert(parks, COLLECTION);
-        mongoTemplate.getCollection(COLLECTION).createIndex(new BasicDBObject().append("coordinates", "2d"));
     }
 
     /**
      * @return
      */
     public long sizeInDB() {
-        return mongoTemplate.count(new Query(), COLLECTION);
+        if (mongoTemplate != null) {
+            return mongoTemplate.count(new Query(), COLLECTION);
+        } else {
+            System.out.println("[ERROR] mongoTemplate could not be initiallized. No operation with DB will be performed");
+            return 0;
+        }
+
     }
 
     /**
      * @param parks
      */
     public void insert(List<Document> parks) {
-        mongoTemplate.insert(parks, COLLECTION);
+        if (mongoTemplate != null) {
+            mongoTemplate.insert(parks, COLLECTION);
+        } else {
+            System.out.println("[ERROR] mongoTemplate could not be initiallized. No operation with DB will be performed");
+        }
+
     }
 
     /**
@@ -130,7 +170,12 @@ public class MongoDBConnection {
     public List<Park> getAll() {
         System.out.println("[DEBUG] MongoDBConnection.getAll()");
 
-        return mongoTemplate.findAll(Park.class, COLLECTION);
+        if (mongoTemplate != null) {
+            return mongoTemplate.findAll(Park.class, COLLECTION);
+        } else {
+            System.out.println("[ERROR] mongoTemplate could not be initiallized. No operation with DB will be performed");
+            return new ArrayList<Park>();
+        }
     }
 
     /**
@@ -140,14 +185,18 @@ public class MongoDBConnection {
     public List<Park> getByQuery(BasicDBObject query) {
         System.out.println("[DEBUG] MongoDBConnection.getByQuery()");
         List<Park> parks = new ArrayList<Park>();
-        ParkReadConverter converter = new ParkReadConverter();
+        if (mongoTemplate != null) {
+            ParkReadConverter converter = new ParkReadConverter();
 
-        DBCursor cursor = mongoTemplate.getCollection(COLLECTION).find(query);
-        int i = 0;
-        while (cursor.hasNext()) {
-            Park park = converter.convert(cursor.next());
-            // System.out.println("Adding item " + i++ + ": " + park);
-            parks.add(park);
+            DBCursor cursor = mongoTemplate.getCollection(COLLECTION).find(query);
+            int i = 0;
+            while (cursor.hasNext()) {
+                Park park = converter.convert(cursor.next());
+                // System.out.println("Adding item " + i++ + ": " + park);
+                parks.add(park);
+            }
+        } else {
+            System.out.println("[ERROR] mongoTemplate could not be initiallized. No operation with DB will be performed");
         }
         return parks;
     }

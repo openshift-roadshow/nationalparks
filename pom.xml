@@ -39,6 +39,7 @@
             <groupId>org.springframework</groupId>
             <artifactId>spring-messaging</artifactId>
         </dependency>
+        <!--
         <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-context</artifactId>
@@ -48,6 +49,7 @@
             <artifactId>spring-cloud-starter-kubernetes</artifactId>
             <version>0.0.16</version>
         </dependency>
+        -->
         <dependency>
             <groupId>javax.ws.rs</groupId>
             <artifactId>javax.ws.rs-api</artifactId>
