@@ -5,7 +5,8 @@
     "name": "nationalparks",
     "annotations": {
       "iconClass": "icon-java",
-      "description": "Application template NationalParks backend running on SpringBoot and using mongodb"
+      "description": "Application template NationalParks backend running on SpringBoot and using mongodb",
+      "tags": "roadshow,springboot,roadshow-backend,java,mongodb"
     }
   },
   "labels": {
@@ -29,7 +30,7 @@
       "description": "The name for the mongodb application.",
       "displayName": "Mongodb App",
       "name": "MONGODB_APPLICATION_NAME",
-      "value": "mongodb-nationalparks",
+      "value": "mongodb",
       "required": true
     },
     {
@@ -113,23 +114,6 @@
     }
   ],
   "objects": [
-    {
-      "kind": "ConfigMap",
-      "apiVersion": "v1",
-      "metadata": {
-        "name": "nationalparks",
-        "labels": {
-          "component": "config"
-        }
-      },
-      "data": {
-        "db.user": "${MONGODB_USER}",
-        "db.password": "${MONGODB_PASSWORD}",
-        "db.name": "${MONGODB_DATABASE}",
-        "db.properties": "db.user=${MONGODB_USER}\ndb.password=${MONGODB_PASSWORD}\ndb.name=${MONGODB_DATABASE}",
-        "application.properties": "spring.data.mongodb.uri=mongodb://${MONGODB_USER}:${MONGODB_PASSWORD}@${MONGODB_APPLICATION_NAME}:27017/${MONGODB_DATABASE}"
-      }
-    },
     {
       "kind": "ImageStream",
       "apiVersion": "v1",
@@ -248,30 +232,15 @@
                   },
                   {
                     "name": "MONGODB_USER",
-                    "valueFrom": {
-                      "configMapKeyRef": {
-                        "name": "nationalparks",
-                        "key": "db.user"
-                      }
-                    }
+                    "value":"${MONGODB_USER}"
                   },
                   {
                     "name": "MONGODB_PASSWORD",
-                    "valueFrom": {
-                      "configMapKeyRef": {
-                        "name": "nationalparks",
-                        "key": "db.password"
-                      }
-                    }
+                    "value":"${MONGODB_PASSWORD}"
                   },
                   {
                     "name": "MONGODB_DATABASE",
-                    "valueFrom": {
-                      "configMapKeyRef": {
-                        "name": "nationalparks",
-                        "key": "db.name"
-                      }
-                    }
+                    "value":"${MONGODB_DATABASE}"
                   },
                   {
                     "name": "MONGODB_ADMIN_PASSWORD",
@@ -492,6 +461,22 @@
                         "fieldPath": "metadata.namespace"
                       }
                     }
+                  },
+                  {
+                    "name": "SPRING_DATA_MONGODB_USERNAME",
+                    "value": "${MONGODB_USER}"
+                  },
+                  {
+                    "name": "SPRING_DATA_MONGODB_PASSWORD",
+                    "value": "${MONGODB_PASSWORD}"
+                  },
+                  {
+                    "name": "SPRING_DATA_MONGODB_DATABASE",
+                    "value": "${MONGODB_DATABASE}"
+                  },
+                  {
+                    "name": "SPRING_DATA_MONGODB_HOST",
+                    "value": "${MONGODB_APPLICATION_NAME}"
                   }
                 ],
                 "resources": {},
