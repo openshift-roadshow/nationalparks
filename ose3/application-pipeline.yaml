@@ -328,7 +328,7 @@ objects:
             value: ${MONGODB_DATABASE}
           - name: SPRING_DATA_MONGODB_URI
             value: mongodb://${MONGODB_USER}:${MONGODB_DEV_PASSWORD}@mongodb-dev:27017/${MONGODB_DATABASE}
-          image: ' '
+          image: nationalparks-dev
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 3
@@ -553,7 +553,7 @@ objects:
             value: ${MONGODB_DATABASE}
           - name: SPRING_DATA_MONGODB_URI
             value: mongodb://${MONGODB_USER}:${MONGODB_LIVE_PASSWORD}@mongodb-live:27017/${MONGODB_DATABASE}
-          image: ' '
+          image: nationalparks-live
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 3
@@ -565,7 +565,7 @@ objects:
             periodSeconds: 10
             successThreshold: 1
             timeoutSeconds: 1
-          name: nationalparks
+          name: nationalparks-live
           ports:
           - containerPort: 8080
             protocol: TCP
@@ -589,7 +589,7 @@ objects:
     triggers:
     - type: ConfigChange
     - imageChangeParams:
-        automatic: true
+        automatic: false
         containerNames:
         - nationalparks-live
         from:
