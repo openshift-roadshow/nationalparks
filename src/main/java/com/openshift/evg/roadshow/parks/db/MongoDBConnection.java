@@ -37,21 +37,17 @@ public class MongoDBConnection {
     public void initConnection() {
         String mongoHost = (System.getenv("MONGODB_SERVER_HOST") == null) ? "127.0.0.1" : System.getenv("MONGODB_SERVER_HOST");
         String mongoPort = (System.getenv("MONGODB_SERVER_PORT") == null) ? "27017" : System.getenv("MONGODB_SERVER_PORT");
-        String mongoUser = (System.getenv("MONGODB_USERNAME") == null) ? "mongodb" : System.getenv("MONGODB_USER");
+        String mongoUser = (System.getenv("MONGODB_USER") == null) ? "mongodb" : System.getenv("MONGODB_USER");
         String mongoPassword = (System.getenv("MONGODB_PASSWORD") == null) ? "mongodb" : System.getenv("MONGODB_PASSWORD");
         String mongoDBName = (System.getenv("MONGODB_DATABASE") == null) ? "mongodb" : System.getenv("MONGODB_DATABASE");
 
         try {
-            System.out.println("[INFO] Connection string: mongodb://"+mongoUser+":"+mongoPassword+"@"+mongoHost+":"+mongoPort+"/"+mongoDBName);
-            UserCredentials credential = new UserCredentials(mongoUser, mongoPassword);
-            MongoOptions m = new MongoOptions();
-            m.setConnectTimeout(1000);
-            m.setSocketTimeout(1000);
-            int mPort = Integer.parseInt(mongoPort);
-            mongoTemplate = new MongoTemplate(new Mongo(new ServerAddress(mongoHost, mPort), m), mongoDBName);
-            mongoTemplate.getCollection(COLLECTION).createIndex(new BasicDBObject().append("coordinates", "2d"));
+            String mongoURI = "mongodb://" + mongoUser + ":" + mongoPassword + "@" + mongoHost + ":" + mongoPort + "/" + mongoDBName;
+            System.out.println("[INFO] Connection string: " + mongoURI);
+            mongoTemplate = new MongoTemplate(new Mongo(new MongoURI(mongoURI)), mongoDBName);
+            mongoTemplate.getCollection(COLLECTION);
         } catch (Throwable e) {
-            System.out.println("[ERROR] Creating the mongoTemplate");
+            System.out.println("[ERROR] Creating the mongoTemplate. " + e.getMessage());
             mongoTemplate = null;
         }
     }

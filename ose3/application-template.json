@@ -76,24 +76,21 @@
       "description": "Database user name",
       "displayName": "Database user name",
       "name": "MONGODB_USER",
-      "from": "user[a-zA-Z0-9]{3}",
-      "generate": "expression",
+      "value": "mongodb",
       "required": true
     },
     {
       "description": "Database user password",
       "displayName": "Database user password",
       "name": "MONGODB_PASSWORD",
-      "from": "[a-zA-Z0-9]{8}",
-      "generate": "expression",
+      "value": "mongodb",
       "required": true
     },
     {
       "description": "Database admin password",
       "displayName": "Database admin password",
       "name": "MONGODB_ADMIN_PASSWORD",
-      "from": "[a-zA-Z0-9]{8}",
-      "generate": "expression",
+      "value": "mongodb",
       "required": true
     },
     {
@@ -244,7 +241,7 @@
                   },
                   {
                     "name": "MONGODB_ADMIN_PASSWORD",
-                    "value": "${MONGODB_ADMIN_USER}"
+                    "value": "${MONGODB_ADMIN_PASSWORD}"
                   }
                 ],
                 "resources": {
