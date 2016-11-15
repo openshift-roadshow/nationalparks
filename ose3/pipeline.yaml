@@ -148,7 +148,7 @@ items:
             value: CUAMdKnX
           - name: MONGODB_DATABASE
             value: mongodb
-          - name: MONGODB_HOST
+          - name: MONGODB_SERVER_HOST
             value: mongodb-live
           image: nationalparks
           imagePullPolicy: IfNotPresent

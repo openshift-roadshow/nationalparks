@@ -475,7 +475,7 @@
                     "value": "${MONGODB_DATABASE}"
                   },
                   {
-                    "name": "MONGODB_HOST",
+                    "name": "MONGODB_SERVER_HOST",
                     "value": "${MONGODB_APPLICATION_NAME}"
                   }
                 ],

@@ -325,7 +325,7 @@ objects:
             value: ${MONGODB_DEV_PASSWORD}
           - name: MONGODB_DATABASE
             value: ${MONGODB_DATABASE}
-          - name: MONGODB_HOST
+          - name: MONGODB_SERVER_HOST
             value: mongodb-dev
           image: nationalparks
           imagePullPolicy: IfNotPresent
@@ -551,7 +551,7 @@ objects:
             value: ${MONGODB_LIVE_PASSWORD}
           - name: MONGODB_DATABASE
             value: ${MONGODB_DATABASE}
-          - name: MONGODB_HOST
+          - name: MONGODB_SERVER_HOST
             value: mongodb-live
           image: nationalparks
           imagePullPolicy: IfNotPresent
