@@ -179,7 +179,7 @@ objects:
             value: ${MONGODB_DATABASE}
           - name: MONGODB_ADMIN_PASSWORD
             value: ${MONGODB_DEV_PASSWORD}
-          image: mongodb-dev
+          image: mongodb
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 3
@@ -328,7 +328,7 @@ objects:
             value: ${MONGODB_DATABASE}
           - name: SPRING_DATA_MONGODB_URI
             value: mongodb://${MONGODB_USER}:${MONGODB_DEV_PASSWORD}@mongodb-dev:27017/${MONGODB_DATABASE}
-          image: nationalparks-dev
+          image: nationalparks
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 3
@@ -453,7 +453,7 @@ objects:
             value: ${MONGODB_DATABASE}
           - name: MONGODB_ADMIN_PASSWORD
             value: ${MONGODB_LIVE_PASSWORD}
-          image: mongodb-live
+          image: mongodb
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 3
@@ -537,6 +537,7 @@ objects:
       metadata:
         labels:
           app: nationalparks-live
+          deploymentconfig: nationalparks-live
       spec:
         containers:
         - env:
@@ -553,7 +554,7 @@ objects:
             value: ${MONGODB_DATABASE}
           - name: SPRING_DATA_MONGODB_URI
             value: mongodb://${MONGODB_USER}:${MONGODB_LIVE_PASSWORD}@mongodb-live:27017/${MONGODB_DATABASE}
-          image: nationalparks-live
+          image: nationalparks
           imagePullPolicy: IfNotPresent
           livenessProbe:
             failureThreshold: 3
