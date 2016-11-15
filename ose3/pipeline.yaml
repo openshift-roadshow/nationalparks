@@ -149,7 +149,7 @@ items:
           - name: MONGODB_DATABASE
             value: mongodb
           - name: MONGODB_HOST
-            value: mongodb-dev
+            value: mongodb-live
           image: nationalparks
           imagePullPolicy: IfNotPresent
           livenessProbe:

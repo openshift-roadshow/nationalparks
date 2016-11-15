@@ -280,7 +280,6 @@ objects:
     - generic:
         secret: ${GENERIC_TRIGGER_SECRET}
       type: Generic
-    - type: ConfigChange
     - type: ImageChange
 - apiVersion: v1
   kind: DeploymentConfig
@@ -588,7 +587,6 @@ objects:
         terminationGracePeriodSeconds: 30
     test: false
     triggers:
-    - type: ConfigChange
     - imageChangeParams:
         automatic: false
         containerNames:
