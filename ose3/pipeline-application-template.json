@@ -1,0 +1,534 @@
+{
+  "kind": "Template",
+  "apiVersion": "v1",
+  "metadata": {
+    "name": "nationalparks",
+    "annotations": {
+      "iconClass": "icon-java",
+      "description": "Application template NationalParks backend running on SpringBoot and using mongodb",
+      "tags": "roadshow,springboot,roadshow-backend,java,mongodb"
+    }
+  },
+  "labels": {
+    "application": "nationalparks",
+    "createdBy": "nationalparks-template"
+  },
+  "parameters": [
+    {
+      "description": "The name for the nationalparks application.",
+      "displayName": "Application Name",
+      "name": "APPLICATION_NAME",
+      "value": "nationalparks",
+      "required": true
+    },
+    {
+      "description": "Custom hostname for nationalparks application.  Leave blank for default hostname, e.g.: <application-name>.<project>.<default-domain-suffix>",
+      "displayName": "Application route",
+      "name": "APPLICATION_HOSTNAME"
+    },
+    {
+      "description": "The name for the mongodb application.",
+      "displayName": "Mongodb App",
+      "name": "MONGODB_APPLICATION_NAME",
+      "value": "mongodb",
+      "required": true
+    },
+    {
+      "description": "Maven mirror url. If nexus is deployed locally, use nexus url (e.g. http://nexus.ci:8081/content/groups/public/)",
+      "displayName": "Maven mirror url",
+      "name": "MAVEN_MIRROR_URL",
+      "required": false
+    },
+    {
+      "description": "Database name",
+      "displayName": "Database name",
+      "name": "MONGODB_DATABASE",
+      "value": "mongodb",
+      "required": true
+    },
+    {
+      "description": "Disable data file preallocation.",
+      "name": "MONGODB_NOPREALLOC"
+    },
+    {
+      "description": "Set MongoDB to use a smaller default data file size.",
+      "name": "MONGODB_SMALLFILES"
+    },
+    {
+      "description": "Runs MongoDB in a quiet mode that attempts to limit the amount of output.",
+      "name": "MONGODB_QUIET"
+    },
+    {
+      "description": "Database user name",
+      "displayName": "Database user name",
+      "name": "MONGODB_USER",
+      "value": "mongodb",
+      "required": true
+    },
+    {
+      "description": "Database user password",
+      "displayName": "Database user password",
+      "name": "MONGODB_PASSWORD",
+      "value": "mongodb",
+      "required": true
+    },
+    {
+      "description": "Database admin password",
+      "displayName": "Database admin password",
+      "name": "MONGODB_ADMIN_PASSWORD",
+      "value": "mongodb",
+      "required": true
+    },
+    {
+      "description": "Github trigger secret",
+      "displayName": "GitHub Trigger",
+      "name": "GITHUB_TRIGGER_SECRET",
+      "from": "[a-zA-Z0-9]{8}",
+      "generate": "expression",
+      "required": true
+    },
+    {
+      "description": "Generic build trigger secret",
+      "displayName": "Generic Trigger",
+      "name": "GENERIC_TRIGGER_SECRET",
+      "from": "[a-zA-Z0-9]{8}",
+      "generate": "expression",
+      "required": true
+    }
+  ],
+  "objects": [
+    {
+      "kind": "ImageStream",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "s2i-java"
+      },
+      "spec": {
+        "tags": [
+          {
+            "name": "latest",
+            "from": {
+              "kind": "DockerImage",
+              "name": "jorgemoralespou/s2i-java"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "${MONGODB_APPLICATION_NAME}",
+        "labels": {
+          "component": "${MONGODB_APPLICATION_NAME}"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "mongo",
+            "protocol": "TCP",
+            "port": 27017,
+            "targetPort": 27017
+          }
+        ],
+        "selector": {
+          "name": "${MONGODB_APPLICATION_NAME}"
+        },
+        "type": "ClusterIP",
+        "sessionAffinity": "None"
+      }
+    },
+    {
+      "kind": "DeploymentConfig",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "${MONGODB_APPLICATION_NAME}",
+        "labels": {
+          "component": "${MONGODB_APPLICATION_NAME}"
+        }
+      },
+      "spec": {
+        "strategy": {
+          "type": "Recreate",
+          "recreateParams": {
+            "timeoutSeconds": 600
+          },
+          "resources": {}
+        },
+        "triggers": [
+          {
+            "type": "ImageChange",
+            "imageChangeParams": {
+              "automatic": true,
+              "containerNames": [
+                "${MONGODB_APPLICATION_NAME}"
+              ],
+              "from": {
+                "kind": "ImageStreamTag",
+                "namespace": "openshift",
+                "name": "mongodb:3.2"
+              }
+            }
+          },
+          {
+            "type": "ConfigChange"
+          }
+        ],
+        "replicas": 1,
+        "test": false,
+        "selector": {
+          "name": "${MONGODB_APPLICATION_NAME}"
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "name": "${MONGODB_APPLICATION_NAME}"
+            }
+          },
+          "spec": {
+            "volumes": [
+              {
+                "name": "mongodb-data",
+                "emptyDir": {}
+              }
+            ],
+            "containers": [
+              {
+                "name": "${MONGODB_APPLICATION_NAME}",
+                "image": "${MONGODB_APPLICATION_NAME}",
+                "ports": [
+                  {
+                    "containerPort": 27017,
+                    "protocol": "TCP"
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "KUBERNETES_NAMESPACE",
+                    "valueFrom": {
+                      "fieldRef": {
+                        "fieldPath": "metadata.namespace"
+                      }
+                    }
+                  },
+                  {
+                    "name": "MONGODB_USER",
+                    "value":"${MONGODB_USER}"
+                  },
+                  {
+                    "name": "MONGODB_PASSWORD",
+                    "value":"${MONGODB_PASSWORD}"
+                  },
+                  {
+                    "name": "MONGODB_DATABASE",
+                    "value":"${MONGODB_DATABASE}"
+                  },
+                  {
+                    "name": "MONGODB_ADMIN_PASSWORD",
+                    "value": "${MONGODB_ADMIN_PASSWORD}"
+                  }
+                ],
+                "resources": {
+                  "limits": {
+                    "memory": "512Mi"
+                  }
+                },
+                "volumeMounts": [
+                  {
+                    "name": "mongodb-data",
+                    "mountPath": "/var/lib/mongodb/data"
+                  }
+                ],
+                "livenessProbe": {
+                  "tcpSocket": {
+                    "port": 27017
+                  },
+                  "initialDelaySeconds": 30,
+                  "timeoutSeconds": 1,
+                  "periodSeconds": 10,
+                  "successThreshold": 1,
+                  "failureThreshold": 3
+                },
+                "readinessProbe": {
+                  "exec": {
+                    "command": [
+                      "/bin/sh",
+                      "-i",
+                      "-c",
+                      "mongo 127.0.0.1:27017/$MONGODB_DATABASE -u $MONGODB_USER -p $MONGODB_PASSWORD --eval=\"quit()\""
+                    ]
+                  },
+                  "initialDelaySeconds": 3,
+                  "timeoutSeconds": 1,
+                  "periodSeconds": 10,
+                  "successThreshold": 1,
+                  "failureThreshold": 3
+                },
+                "terminationMessagePath": "/dev/termination-log",
+                "imagePullPolicy": "IfNotPresent",
+                "securityContext": {
+                  "capabilities": {},
+                  "privileged": false
+                }
+              }
+            ],
+            "restartPolicy": "Always",
+            "terminationGracePeriodSeconds": 30,
+            "dnsPolicy": "ClusterFirst",
+            "securityContext": {}
+          }
+        }
+      }
+    },
+    {
+      "kind": "ImageStream",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "${APPLICATION_NAME}"
+      },
+      "spec": {
+        "tags": [
+          {
+            "name": "latest"
+          }
+        ]
+      }
+    },
+    {
+      "kind": "BuildConfig",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "${APPLICATION_NAME}-docker",
+        "labels": {
+          "build": "${APPLICATION_NAME}-docker"
+        }
+      },
+      "spec": {
+        "triggers": [
+          {
+            "type": "GitHub",
+            "github": {
+              "secret": "${GITHUB_TRIGGER_SECRET}"
+            }
+          },
+          {
+            "type": "Generic",
+            "generic": {
+              "secret": "${GENERIC_TRIGGER_SECRET}"
+            }
+          }
+        ],
+        "runPolicy": "Serial",
+        "source": {
+          "type": "Binary",
+          "binary": { }
+        },
+        "strategy": {
+          "type": "Docker",
+          "dockerStrategy": {
+            "from": {
+              "kind": "ImageStreamTag",
+              "name": "s2i-java:latest"
+            }
+          }
+        },
+        "output": {
+          "to": {
+            "kind": "ImageStreamTag",
+            "name": "${APPLICATION_NAME}:latest"
+          }
+        },
+        "resources": {},
+        "postCommit": {}
+      }
+    },
+    {
+      "kind": "DeploymentConfig",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "${APPLICATION_NAME}",
+        "labels": {
+          "component": "${APPLICATION_NAME}"
+        }
+      },
+      "spec": {
+        "strategy": {
+          "type": "Rolling",
+          "rollingParams": {
+            "updatePeriodSeconds": 1,
+            "intervalSeconds": 1,
+            "timeoutSeconds": 600,
+            "maxUnavailable": "25%",
+            "maxSurge": "25%",
+            "post": {
+              "failurePolicy": "Ignore",
+              "execNewPod": {
+                "command": [
+                  "curl",
+                  "-s",
+                  "http://${APPLICATION_NAME}:8080/ws/data/load"
+                ],
+                "containerName": "${APPLICATION_NAME}"
+              }
+            }
+          },
+          "resources": {}
+        },
+        "triggers": [
+          {
+            "type": "ConfigChange"
+          },
+          {
+            "type": "ImageChange",
+            "imageChangeParams": {
+              "automatic": false,
+              "containerNames": [
+                "${APPLICATION_NAME}"
+              ],
+              "from": {
+                "kind": "ImageStreamTag",
+                "name": "${APPLICATION_NAME}:latest"
+              }
+            }
+          }
+        ],
+        "replicas": 1,
+        "test": false,
+        "selector": {
+          "component": "${APPLICATION_NAME}"
+        },
+        "template": {
+          "metadata": {
+            "labels": {
+              "component": "${APPLICATION_NAME}"
+            }
+          },
+          "spec": {
+            "containers": [
+              {
+                "name": "${APPLICATION_NAME}",
+                "image": "${APPLICATION_NAME}",
+                "ports": [
+                  {
+                    "containerPort": 8080,
+                    "protocol": "TCP"
+                  }
+                ],
+                "env": [
+                  {
+                    "name": "KUBERNETES_NAMESPACE",
+                    "valueFrom": {
+                      "fieldRef": {
+                        "fieldPath": "metadata.namespace"
+                      }
+                    }
+                  },
+                  {
+                    "name": "MONGODB_USERNAME",
+                    "value": "${MONGODB_USER}"
+                  },
+                  {
+                    "name": "MONGODB_PASSWORD",
+                    "value": "${MONGODB_PASSWORD}"
+                  },
+                  {
+                    "name": "MONGODB_DATABASE",
+                    "value": "${MONGODB_DATABASE}"
+                  },
+                  {
+                    "name": "MONGODB_SERVER_HOST",
+                    "value": "${MONGODB_APPLICATION_NAME}"
+                  }
+                ],
+                "resources": {},
+                "livenessProbe": {
+                  "httpGet": {
+                    "path": "/ws/healthz/",
+                    "port": 8080,
+                    "scheme": "HTTP"
+                  },
+                  "initialDelaySeconds": 120,
+                  "timeoutSeconds": 1,
+                  "periodSeconds": 10,
+                  "successThreshold": 1,
+                  "failureThreshold": 3
+                },
+                "readinessProbe": {
+                  "httpGet": {
+                    "path": "/ws/healthz/",
+                    "port": 8080,
+                    "scheme": "HTTP"
+                  },
+                  "initialDelaySeconds": 20,
+                  "timeoutSeconds": 1,
+                  "periodSeconds": 10,
+                  "successThreshold": 1,
+                  "failureThreshold": 3
+                },
+                "terminationMessagePath": "/dev/termination-log",
+                "imagePullPolicy": "IfNotPresent"
+              }
+            ],
+            "restartPolicy": "Always",
+            "terminationGracePeriodSeconds": 30,
+            "dnsPolicy": "ClusterFirst",
+            "securityContext": {},
+            "serviceAccountName": "jenkins"
+          }
+        }
+      }
+    },
+    {
+      "kind": "Service",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "${APPLICATION_NAME}",
+        "labels": {
+          "component": "${APPLICATION_NAME}",
+          "type": "parksmap-backend"
+        },
+        "annotations": {
+          "service.alpha.openshift.io/dependencies": "[{\"name\":\"${MONGODB_APPLICATION_NAME}\",\"namespace\":\"\",\"kind\":\"Service\"}]"
+        }
+      },
+      "spec": {
+        "ports": [
+          {
+            "name": "8080-tcp",
+            "protocol": "TCP",
+            "port": 8080,
+            "targetPort": 8080
+          }
+        ],
+        "selector": {
+          "component": "${APPLICATION_NAME}"
+        },
+        "type": "ClusterIP",
+        "sessionAffinity": "None"
+      }
+    },
+    {
+      "kind": "Route",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "${APPLICATION_NAME}",
+        "labels": {
+          "component": "${APPLICATION_NAME}"
+        }
+      },
+      "spec": {
+        "host": "${APPLICATION_HOSTNAME}",
+        "to": {
+          "kind": "Service",
+          "name": "${APPLICATION_NAME}",
+          "weight": 100
+        },
+        "port": {
+          "targetPort": "8080-tcp"
+        }
+      }
+    }
+  ]
+}

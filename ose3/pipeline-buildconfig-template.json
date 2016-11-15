@@ -1,0 +1,74 @@
+{
+  "kind": "Template",
+  "apiVersion": "v1",
+  "metadata": {
+    "name": "nationalparks-pipeline"
+  },
+  "labels": {
+    "application": "nationalparks-pipeline",
+    "createdBy": "nationalparks-template"
+  },
+  "parameters": [
+    {
+      "description": "The name for the application.",
+      "displayName": "Application Name",
+      "name": "APPLICATION_NAME",
+      "value": "nationalparks",
+      "required": true
+    },
+    {
+      "description": "Git source URI for application",
+      "displayName": "Git source repository",
+      "name": "GIT_URI",
+      "value": "https://github.com/openshift-roadshow/nationalparks.git",
+      "required": true
+    },
+    {
+      "description": "Git branch/tag reference",
+      "displayName": "Git branch/tag reference",
+      "name": "GIT_REF",
+      "value": "master",
+      "required": true
+    }
+  ],
+  "objects": [
+    {
+      "kind": "BuildConfig",
+      "apiVersion": "v1",
+      "metadata": {
+        "name": "${APPLICATION_NAME}-pipeline",
+        "labels": {
+          "build": "${APPLICATION_NAME}-pipeline"
+        }
+      },
+      "spec": {
+        "triggers": [
+          {
+            "type": "GitHub",
+            "github": {
+              "secret": "${GITHUB_TRIGGER_SECRET}"
+            }
+          },
+          {
+            "type": "Generic",
+            "generic": {
+              "secret": "${GENERIC_TRIGGER_SECRET}"
+            }
+          }
+        ],
+        "runPolicy": "Serial",
+        "source": {
+          "type": "Git",
+          "git": {
+            "uri": "${GIT_URI}",
+            "ref": "${GIT_REF}"
+          }
+        },
+        "strategy": {
+          "type": "JenkinsPipeline",
+          "jenkinsPipelineStrategy": { }
+        }
+      }
+    }
+  ]
+}
