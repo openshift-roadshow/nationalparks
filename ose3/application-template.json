@@ -463,19 +463,19 @@
                     }
                   },
                   {
-                    "name": "SPRING_DATA_MONGODB_USERNAME",
+                    "name": "MONGODB_USERNAME",
                     "value": "${MONGODB_USER}"
                   },
                   {
-                    "name": "SPRING_DATA_MONGODB_PASSWORD",
+                    "name": "MONGODB_PASSWORD",
                     "value": "${MONGODB_PASSWORD}"
                   },
                   {
-                    "name": "SPRING_DATA_MONGODB_DATABASE",
+                    "name": "MONGODB_DATABASE",
                     "value": "${MONGODB_DATABASE}"
                   },
                   {
-                    "name": "SPRING_DATA_MONGODB_HOST",
+                    "name": "MONGODB_HOST",
                     "value": "${MONGODB_APPLICATION_NAME}"
                   }
                 ],
