@@ -77,7 +77,7 @@ items:
             periodSeconds: 10
             successThreshold: 1
             timeoutSeconds: 1
-          resources:
+          resources:∫
             limits:
               memory: 512Mi
           securityContext:
@@ -142,14 +142,14 @@ items:
               fieldRef:
                 apiVersion: v1
                 fieldPath: metadata.namespace
-          - name: SPRING_DATA_MONGODB_USER
+          - name: MONGODB_USER
             value: mongodb
-          - name: SPRING_DATA_MONGODB_PASSWORD
+          - name: MONGODB_PASSWORD
             value: CUAMdKnX
-          - name: SPRING_DATA_MONGODB_DATABASE
+          - name: MONGODB_DATABASE
             value: mongodb
-          - name: SPRING_DATA_MONGODB_URI
-            value: mongodb://mongodb:CUAMdKnX@mongodb-dev:27017/mongodb
+          - name: MONGODB_HOST
+            value: mongodb-dev
           image: nationalparks
           imagePullPolicy: IfNotPresent
           livenessProbe:
