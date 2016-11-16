@@ -208,7 +208,7 @@ items:
       service.alpha.openshift.io/dependencies: '[{"name":"mongodb-live","namespace":"","kind":"Service"}]'
   spec:
     ports:
-    - name: web
+    - name: 8080-tcp
       port: 8080
       protocol: TCP
       targetPort: 8080
@@ -229,6 +229,6 @@ items:
       name: nationalparks-live
       weight: 100
   port:
-    targetPort: web
+    targetPort: 8080-tcp
 kind: List
 metadata: {}
