@@ -107,6 +107,16 @@ items:
       type: ImageChange
     - type: ConfigChange
 - apiVersion: v1
+  metadata:
+    name: nationalparks-live
+  data:
+    application.properties: |
+      mongodb.server.host=mongodb-live
+      mongodb.user=mongodb
+      mongodb.password=CUAMdKnX
+      mongodb.database=mongodb
+  kind: ConfigMap
+- apiVersion: v1
   kind: DeploymentConfig
   metadata:
     labels:
@@ -142,14 +152,8 @@ items:
               fieldRef:
                 apiVersion: v1
                 fieldPath: metadata.namespace
-          - name: MONGODB_USER
-            value: mongodb
-          - name: MONGODB_PASSWORD
-            value: CUAMdKnX
-          - name: MONGODB_DATABASE
-            value: mongodb
-          - name: MONGODB_SERVER_HOST
-            value: mongodb-live
+          - name: SPRING_APPLICATION_NAME
+            value: nationalparks-live
           image: nationalparks
           imagePullPolicy: IfNotPresent
           livenessProbe:
