@@ -77,7 +77,7 @@ items:
             periodSeconds: 10
             successThreshold: 1
             timeoutSeconds: 1
-          resources:∫
+          resources:
             limits:
               memory: 512Mi
           securityContext:
@@ -230,21 +230,5 @@ items:
       weight: 100
   port:
     targetPort: web
-- kind: "BuildConfig"
-  apiVersion: "v1"
-  metadata:
-    name: "nationalparks-pipeline"
-  spec:
-    strategy:
-      type: "JenkinsPipeline"
-      jenkinsPipelineStrategy:
-        jenkinsfile: "node {\n  stage 'Build'\n  openshiftBuild(buildConfig: 'nationalparks', showBuildLogs: 'true')\n  \n  stage 'Deploy Dev'\n  openshiftDeploy(deploymentConfig: 'nationalparks')\n\n  stage 'Test Dev'\n  sh 'curl -s http://$NATIONALPARKS_SERVICE_HOST:$NATIONALPARKS_SERVICE_PORT/ws/data/load'\n  sh 'curl -s http://$NATIONALPARKS_SERVICE_HOST:$NATIONALPARKS_SERVICE_PORT/ws/data/all | grep -q \"Grand Canyon National Park\"'\n  \n  stage 'Deploy Live'\n  input 'Promote the Dev image to Live?'\n  openshiftTag(srcStream: 'nationalparks', srcTag: 'latest', destStream: 'nationalparks', destTag: 'live')\n  openshiftDeploy(deploymentConfig: 'nationalparks-live')}"
-    triggers:
-    - github:
-        secret: 5Mlic4Le
-      type: GitHub
-    - generic:
-        secret: FiArdDBH
-      type: Generic
 kind: List
 metadata: {}

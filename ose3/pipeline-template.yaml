@@ -1,0 +1,62 @@
+apiVersion: v1
+kind: Template
+labels:
+metadata:
+  annotations:
+    description: CI/CD Pipeline for Dev and Live environments
+    iconClass: icon-java
+  name: dev-live-pipeline
+objects:
+- kind: "BuildConfig"
+  apiVersion: "v1"
+  metadata:
+    name: ${PIPELINE_NAME}
+  spec:
+    strategy:
+      type: "JenkinsPipeline"
+      jenkinsPipelineStrategy:
+        jenkinsfile: "node {\n  stage 'Build'\n  openshiftBuild(buildConfig: '${DEV_RESOURCE_NAME}', namespace: '${PROJECT_NAME}', showBuildLogs: 'true')\n  \n  stage 'Deploy Dev'\n  openshiftDeploy(deploymentConfig: '${DEV_RESOURCE_NAME}', namespace: '${PROJECT_NAME}')\n\n  stage 'Test Dev'\n  sh 'curl -s http://${DEV_RESOURCE_NAME}.${PROJECT_NAME}.svc.cluster.local:8080/ws/data/load'\n  sh 'curl -s http://${DEV_RESOURCE_NAME}.${PROJECT_NAME}.svc.cluster.local:8080/ws/data/all | grep -q \"Grand Canyon National Park\"'\n  \n  stage 'Deploy Live'\n  input 'Promote the Dev image to Live?'\n  openshiftTag(srcStream: '${IMAGE_STREAM}', srcTag: 'latest', destStream: '${IMAGE_STREAM}', destTag: 'live', namespace: '${PROJECT_NAME}', destinationNamespace: '${PROJECT_NAME}')\n  openshiftDeploy(deploymentConfig: '${LIVE_RESOURCE_NAME}', namespace: '${PROJECT_NAME}')\n}"
+    triggers:
+    - github:
+        secret: ${GITHUB_TRIGGER_SECRET}
+      type: GitHub
+    - generic:
+        secret: ${GENERIC_TRIGGER_SECRET}
+      type: Generic
+parameters:
+- description: Name of the deployment pipeline
+  displayName: Pipeline name
+  name: PIPELINE_NAME
+  required: true
+  value: nationalparks-pipeline
+- description: Name of the project where the Dev and Live containers are deployed
+  displayName: Project name
+  name: PROJECT_NAME
+  required: true
+- description: Name of the Dev resources e.g. DeploymentConfig, BuildConfig and Service
+  displayName: Dev resource name
+  name: DEV_RESOURCE_NAME
+  required: true
+  value: nationalparks
+- description: Name of the Live resources e.g. DeploymentConfig, BuildConfig and Service
+  displayName: Live resource name
+  name: LIVE_RESOURCE_NAME
+  required: true
+  value: nationalparks-live
+- description: Name of the ImageStream
+  displayName: ImageStream name
+  name: IMAGE_STREAM
+  required: true
+  value: nationalparks
+- description: Github trigger secret
+  displayName: GitHub Trigger
+  from: '[a-zA-Z0-9]{8}'
+  generate: expression
+  name: GITHUB_TRIGGER_SECRET
+  required: true
+- description: Generic build trigger secret
+  displayName: Generic Trigger
+  from: '[a-zA-Z0-9]{8}'
+  generate: expression
+  name: GENERIC_TRIGGER_SECRET
+  required: true
