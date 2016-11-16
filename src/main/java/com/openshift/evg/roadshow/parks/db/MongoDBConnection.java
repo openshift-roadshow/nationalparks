@@ -1,19 +1,29 @@
 package com.openshift.evg.roadshow.parks.db;
 
-import com.mongodb.*;
-import com.openshift.evg.roadshow.parks.model.Park;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.List;
+
+import javax.annotation.PostConstruct;
+
 import org.bson.Document;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.env.Environment;
 import org.springframework.core.io.ResourceLoader;
-import org.springframework.data.authentication.UserCredentials;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
-import java.io.*;
-import java.util.ArrayList;
-import java.util.List;
+import com.mongodb.BasicDBObject;
+import com.mongodb.DBCursor;
+import com.mongodb.Mongo;
+import com.mongodb.MongoURI;
+import com.openshift.evg.roadshow.parks.model.Park;
 
 /**
  * Created by jmorales on 11/08/16.
@@ -27,6 +37,9 @@ public class MongoDBConnection {
 
     @Autowired
     private ResourceLoader resourceLoader;
+    
+    @Autowired
+    private Environment env;
 
     private MongoTemplate mongoTemplate = null;
 
@@ -35,11 +48,11 @@ public class MongoDBConnection {
 
     @PostConstruct
     public void initConnection() {
-        String mongoHost = (System.getenv("MONGODB_SERVER_HOST") == null) ? "127.0.0.1" : System.getenv("MONGODB_SERVER_HOST");
-        String mongoPort = (System.getenv("MONGODB_SERVER_PORT") == null) ? "27017" : System.getenv("MONGODB_SERVER_PORT");
-        String mongoUser = (System.getenv("MONGODB_USER") == null) ? "mongodb" : System.getenv("MONGODB_USER");
-        String mongoPassword = (System.getenv("MONGODB_PASSWORD") == null) ? "mongodb" : System.getenv("MONGODB_PASSWORD");
-        String mongoDBName = (System.getenv("MONGODB_DATABASE") == null) ? "mongodb" : System.getenv("MONGODB_DATABASE");
+        String mongoHost = env.getProperty("mongodb.server.host", "127.0.0l1"); // env var MONGODB_SERVER_HOST takes precedence
+        String mongoPort = env.getProperty("mongodb.server.port", "27017"); // env var MONGODB_SERVER_PORT takes precedence
+        String mongoUser = env.getProperty("mongodb.user", "mongodb"); // env var MONGODB_USER takes precedence
+        String mongoPassword = env.getProperty("mongodb.password", "mongodb"); // env var MONGODB_PASSWORD takes precedence
+        String mongoDBName = env.getProperty("mongodb.database", "mongodb"); // env var MONGODB_DATABASE takes precedence
 
         try {
             String mongoURI = "mongodb://" + mongoUser + ":" + mongoPassword + "@" + mongoHost + ":" + mongoPort + "/" + mongoDBName;
@@ -197,5 +210,4 @@ public class MongoDBConnection {
         }
         return parks;
     }
-
 }
