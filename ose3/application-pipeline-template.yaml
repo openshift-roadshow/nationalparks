@@ -650,6 +650,8 @@ objects:
   apiVersion: "v1"
   metadata:
     name: "nationalparks-pipeline"
+    annotations:
+      pipeline.alpha.openshift.io/uses: '[{"name": "nationalparks-dev", "namespace": "", "kind": "DeploymentConfig"},{"name": "nationalparks-live", "namespace": "", "kind": "DeploymentConfig"}]'
   spec:
     strategy:
       type: "JenkinsPipeline"

@@ -11,6 +11,8 @@ objects:
   apiVersion: "v1"
   metadata:
     name: ${PIPELINE_NAME}
+    annotations:
+      pipeline.alpha.openshift.io/uses: '[{"name": "${DEV_RESOURCE_NAME}", "namespace": "${PROJECT_NAME}", "kind": "DeploymentConfig"},{"name": "${LIVE_RESOURCE_NAME}", "namespace": "${PROJECT_NAME}", "kind": "DeploymentConfig"}]'
   spec:
     strategy:
       type: "JenkinsPipeline"
