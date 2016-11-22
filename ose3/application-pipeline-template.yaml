@@ -329,8 +329,6 @@ objects:
             valueFrom:
               fieldRef:
                 fieldPath: metadata.namespace
-          - name: SPRING_APPLICATION_NAME
-            value: nationalparks-dev
           image: nationalparks
           imagePullPolicy: IfNotPresent
           livenessProbe:
@@ -359,10 +357,17 @@ objects:
             timeoutSeconds: 1
           resources: {}
           terminationMessagePath: /dev/termination-log
+          volumeMounts:
+          - mountPath: /opt/openshift/config
+            name: volume-spring-dev
         dnsPolicy: ClusterFirst
         restartPolicy: Always
         securityContext: {}
         terminationGracePeriodSeconds: 30
+        volumes:
+        - configMap:
+            name: nationalparks-dev
+          name: volume-spring-dev
     test: false
     triggers:
     - type: ConfigChange
@@ -559,8 +564,6 @@ objects:
               fieldRef:
                 apiVersion: v1
                 fieldPath: metadata.namespace
-          - name: SPRING_APPLICATION_NAME
-            value: nationalparks-live
           image: nationalparks
           imagePullPolicy: IfNotPresent
           livenessProbe:
@@ -589,10 +592,17 @@ objects:
             timeoutSeconds: 1
           resources: {}
           terminationMessagePath: /dev/termination-log
+          volumeMounts:
+          - mountPath: /opt/openshift/config
+            name: volume-spring-live
         dnsPolicy: ClusterFirst
         restartPolicy: Always
         securityContext: {}
         terminationGracePeriodSeconds: 30
+        volumes:
+        - configMap:
+            name: nationalparks-live
+          name: volume-spring-live
     test: false
     triggers:
     - imageChangeParams:
