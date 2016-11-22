@@ -1,29 +1,22 @@
 package com.openshift.evg.roadshow.parks.db;
 
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.annotation.PostConstruct;
-
+import com.mongodb.BasicDBObject;
+import com.mongodb.MongoClient;
+import com.mongodb.MongoClientURI;
+import com.mongodb.client.MongoCollection;
+import com.mongodb.client.MongoCursor;
+import com.mongodb.client.MongoDatabase;
+import com.openshift.evg.roadshow.parks.model.Park;
 import org.bson.Document;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.core.io.ResourceLoader;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Component;
 
-import com.mongodb.BasicDBObject;
-import com.mongodb.DBCursor;
-import com.mongodb.Mongo;
-import com.mongodb.MongoURI;
-import com.openshift.evg.roadshow.parks.model.Park;
+import javax.annotation.PostConstruct;
+import java.io.*;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Created by jmorales on 11/08/16.
@@ -37,18 +30,18 @@ public class MongoDBConnection {
 
     @Autowired
     private ResourceLoader resourceLoader;
-    
+
     @Autowired
     private Environment env;
 
-    private MongoTemplate mongoTemplate = null;
+    private MongoDatabase mongoDB = null;
 
     public MongoDBConnection() {
     }
 
     @PostConstruct
     public void initConnection() {
-        String mongoHost = env.getProperty("mongodb.server.host", "127.0.0l1"); // env var MONGODB_SERVER_HOST takes precedence
+        String mongoHost = env.getProperty("mongodb.server.host", "127.0.0.1"); // env var MONGODB_SERVER_HOST takes precedence
         String mongoPort = env.getProperty("mongodb.server.port", "27017"); // env var MONGODB_SERVER_PORT takes precedence
         String mongoUser = env.getProperty("mongodb.user", "mongodb"); // env var MONGODB_USER takes precedence
         String mongoPassword = env.getProperty("mongodb.password", "mongodb"); // env var MONGODB_PASSWORD takes precedence
@@ -57,11 +50,11 @@ public class MongoDBConnection {
         try {
             String mongoURI = "mongodb://" + mongoUser + ":" + mongoPassword + "@" + mongoHost + ":" + mongoPort + "/" + mongoDBName;
             System.out.println("[INFO] Connection string: " + mongoURI);
-            mongoTemplate = new MongoTemplate(new Mongo(new MongoURI(mongoURI)), mongoDBName);
-            mongoTemplate.getCollection(COLLECTION);
-        } catch (Throwable e) {
-            System.out.println("[ERROR] Creating the mongoTemplate. " + e.getMessage());
-            mongoTemplate = null;
+            MongoClient mongoClient = new MongoClient(new MongoClientURI(mongoURI));
+            mongoDB = mongoClient.getDatabase(mongoDBName);
+        } catch (Exception e) {
+            System.out.println("[ERROR] Creating the mongoDB. " + e.getMessage());
+            mongoDB = null;
         }
     }
 
@@ -75,7 +68,7 @@ public class MongoDBConnection {
             return loadParks(resourceLoader.getResource(ResourceLoader.CLASSPATH_URL_PREFIX + FILENAME).getInputStream());
         } catch (Exception e) {
             e.printStackTrace();
-            System.out.println("Error loading parks. Return empty list");
+            System.out.println("Error loading parks. Return empty list. " + e.getMessage());
         }
         return new ArrayList<Document>();
     }
@@ -87,7 +80,7 @@ public class MongoDBConnection {
             return loadParks(new FileInputStream(new File(fileLocation)));
         } catch (Exception e) {
             e.printStackTrace();
-            System.out.println("Error loading parks. Return empty list");
+            System.out.println("Error loading parks. Return empty list. " + e.getMessage());
         }
         return new ArrayList<Document>();
     }
@@ -108,7 +101,7 @@ public class MongoDBConnection {
             }
         } catch (Exception e) {
             e.printStackTrace();
-            System.out.println("Error loading parks. Return empty list");
+            System.out.println("Error loading parks. Return empty list. " + e.getMessage());
         } finally {
             try {
                 is.close();
@@ -126,10 +119,14 @@ public class MongoDBConnection {
      */
     public void clear() {
         System.out.println("[DEBUG] MongoDBConnection.clear()");
-        if (mongoTemplate != null) {
-            mongoTemplate.dropCollection(COLLECTION);
+        if (mongoDB != null) {
+            try{
+                mongoDB.getCollection(COLLECTION).drop();
+            } catch (Exception e) {
+                System.out.println("[ERROR] Error connecting to MongoDB. " + e.getMessage());
+            }
         } else {
-            System.out.println("[ERROR] mongoTemplate could not be initiallized. No operation with DB will be performed");
+            System.out.println("[ERROR] mongoDB could not be initiallized. No operation with DB will be performed");
         }
     }
 
@@ -139,12 +136,16 @@ public class MongoDBConnection {
      */
     public void init(List<Document> parks) {
         System.out.println("[DEBUG] MongoDBConnection.init(...)");
-        if (mongoTemplate != null) {
-            mongoTemplate.dropCollection(COLLECTION);
-            mongoTemplate.insert(parks, COLLECTION);
-            mongoTemplate.getCollection(COLLECTION).createIndex(new BasicDBObject().append("coordinates", "2d"));
+        if (mongoDB != null) {
+            try {
+                mongoDB.getCollection(COLLECTION).drop();
+                mongoDB.getCollection(COLLECTION).insertMany(parks);
+                mongoDB.getCollection(COLLECTION).createIndex(new BasicDBObject().append("coordinates", "2d"));
+            } catch (Exception e) {
+                System.out.println("[ERROR] Error connecting to MongoDB. " + e.getMessage());
+            }
         } else {
-            System.out.println("[ERROR] mongoTemplate could not be initiallized. No operation with DB will be performed");
+            System.out.println("[ERROR] mongoDB could not be initiallized. No operation with DB will be performed");
         }
 
     }
@@ -153,23 +154,33 @@ public class MongoDBConnection {
      * @return
      */
     public long sizeInDB() {
-        if (mongoTemplate != null) {
-            return mongoTemplate.count(new Query(), COLLECTION);
-        } else {
-            System.out.println("[ERROR] mongoTemplate could not be initiallized. No operation with DB will be performed");
-            return 0;
-        }
+        long size = 0;
 
+        if (mongoDB != null) {
+            try {
+                size = mongoDB.getCollection(COLLECTION).count();
+            } catch (Exception e) {
+                System.out.println("[ERROR] Error connecting to MongoDB. " + e.getMessage());
+            }
+
+        } else {
+            System.out.println("[ERROR] mongoDB could not be initiallized. No operation with DB will be performed");
+        }
+        return size;
     }
 
     /**
      * @param parks
      */
     public void insert(List<Document> parks) {
-        if (mongoTemplate != null) {
-            mongoTemplate.insert(parks, COLLECTION);
+        if (mongoDB != null) {
+            try {
+                mongoDB.getCollection(COLLECTION).insertMany(parks);
+            } catch (Exception e) {
+                System.out.println("[ERROR] Error connecting to MongoDB. " + e.getMessage());
+            }
         } else {
-            System.out.println("[ERROR] mongoTemplate could not be initiallized. No operation with DB will be performed");
+            System.out.println("[ERROR] mongoDB could not be initiallized. No operation with DB will be performed");
         }
 
     }
@@ -179,13 +190,61 @@ public class MongoDBConnection {
      */
     public List<Park> getAll() {
         System.out.println("[DEBUG] MongoDBConnection.getAll()");
+        ArrayList<Park> allParksList = new ArrayList<Park>();
 
-        if (mongoTemplate != null) {
-            return mongoTemplate.findAll(Park.class, COLLECTION);
+        if (mongoDB != null) {
+            try {
+                MongoCollection parks = mongoDB.getCollection(COLLECTION);
+                MongoCursor<Document> cursor = parks.find().iterator();
+                try {
+                    while (cursor.hasNext()) {
+                        allParksList.add(ParkReadConverter.convert(cursor.next()));
+                    }
+                } finally {
+                    cursor.close();
+                }
+            } catch (Exception e) {
+                System.out.println("[ERROR] Error connecting to MongoDB. " + e.getMessage());
+            }
         } else {
-            System.out.println("[ERROR] mongoTemplate could not be initiallized. No operation with DB will be performed");
-            return new ArrayList<Park>();
+            System.out.println("[ERROR] mongoDB could not be initiallized. No operation with DB will be performed");
         }
+        return allParksList;
+    }
+
+    public List<Park> getWithin(float lat1, float lon1, float lat2, float lon2) {
+        System.out.println("[DEBUG] MongoDBConnection.getAll()");
+        ArrayList<Park> allParksList = new ArrayList<Park>();
+
+        if (mongoDB != null) {
+            try {
+                MongoCollection parks = mongoDB.getCollection(COLLECTION);
+                // make the query object
+                BasicDBObject spatialQuery = new BasicDBObject();
+                ArrayList<double[]> boxList = new ArrayList<double[]>();
+                boxList.add(new double[]{new Float(lat2), new Float(lon2)});
+                boxList.add(new double[]{new Float(lat1), new Float(lon1)});
+                BasicDBObject boxQuery = new BasicDBObject();
+                boxQuery.put("$box", boxList);
+                spatialQuery.put("pos", new BasicDBObject("$within", boxQuery));
+                System.out.println("Using spatial query: " + spatialQuery.toString());
+
+                MongoCursor<Document> cursor = parks.find(spatialQuery).iterator();
+                try {
+                    while (cursor.hasNext()) {
+                        allParksList.add(ParkReadConverter.convert(cursor.next()));
+                    }
+                } finally {
+                    cursor.close();
+                }
+            } catch (Exception e) {
+                System.out.println("[ERROR] Error connecting to MongoDB. " + e.getMessage());
+            }
+
+        } else {
+            System.out.println("[ERROR] mongoDB could not be initiallized. No operation with DB will be performed");
+        }
+        return allParksList;
     }
 
     /**
@@ -195,18 +254,23 @@ public class MongoDBConnection {
     public List<Park> getByQuery(BasicDBObject query) {
         System.out.println("[DEBUG] MongoDBConnection.getByQuery()");
         List<Park> parks = new ArrayList<Park>();
-        if (mongoTemplate != null) {
-            ParkReadConverter converter = new ParkReadConverter();
-
-            DBCursor cursor = mongoTemplate.getCollection(COLLECTION).find(query);
-            int i = 0;
-            while (cursor.hasNext()) {
-                Park park = converter.convert(cursor.next());
-                // System.out.println("Adding item " + i++ + ": " + park);
-                parks.add(park);
+        if (mongoDB != null) {
+            try {
+                MongoCursor<Document> cursor = mongoDB.getCollection(COLLECTION).find(query).iterator();
+                int i = 0;
+                try {
+                    while (cursor.hasNext()) {
+                        parks.add(ParkReadConverter.convert(cursor.next()));
+                    }
+                } finally {
+                    cursor.close();
+                }
+            } catch (Exception e) {
+                System.out.println("[ERROR] Error connecting to MongoDB. " + e.getMessage());
             }
+
         } else {
-            System.out.println("[ERROR] mongoTemplate could not be initiallized. No operation with DB will be performed");
+            System.out.println("[ERROR] mongoDB could not be initiallized. No operation with DB will be performed");
         }
         return parks;
     }
