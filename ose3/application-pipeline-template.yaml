@@ -133,7 +133,7 @@ objects:
   kind: Service
   metadata:
     labels:
-      component: mongodb-dev
+      app: mongodb-dev
     name: mongodb-dev
   spec:
     ports:
@@ -149,7 +149,7 @@ objects:
   kind: DeploymentConfig
   metadata:
     labels:
-      component: mongodb-dev
+      app: mongodb-dev
     name: mongodb-dev
   spec:
     replicas: 1
@@ -295,12 +295,12 @@ objects:
   kind: DeploymentConfig
   metadata:
     labels:
-      component: nationalparks-dev
+      app: nationalparks-dev
     name: nationalparks-dev
   spec:
     replicas: 1
     selector:
-      component: nationalparks-dev
+      app: nationalparks-dev
     strategy:
       resources: {}
       rollingParams:
@@ -321,7 +321,7 @@ objects:
     template:
       metadata:
         labels:
-          component: nationalparks-dev
+          app: nationalparks-dev
       spec:
         containers:
         - env:
@@ -385,7 +385,7 @@ objects:
     annotations:
       service.alpha.openshift.io/dependencies: '[{"name":"mongodb-dev","namespace":"","kind":"Service"}]'
     labels:
-      component: nationalparks-dev
+      app: nationalparks-dev
       app: nationalparks-dev
     name: nationalparks-dev
   spec:
@@ -395,14 +395,14 @@ objects:
       protocol: TCP
       targetPort: 8080
     selector:
-      component: nationalparks-dev
+      app: nationalparks-dev
     sessionAffinity: None
     type: ClusterIP
 - apiVersion: v1
   kind: Route
   metadata:
     labels:
-      component: nationalparks-dev
+      app: nationalparks-dev
     name: nationalparks-dev
   spec:
     port:
@@ -415,7 +415,7 @@ objects:
   kind: Service
   metadata:
     labels:
-      component: mongodb-live
+      app: mongodb-live
     name: mongodb-live
   spec:
     ports:
@@ -431,7 +431,7 @@ objects:
   kind: DeploymentConfig
   metadata:
     labels:
-      component: mongodb-live
+      app: mongodb-live
     name: mongodb-live
   spec:
     replicas: 1
@@ -618,7 +618,6 @@ objects:
   metadata:
     labels:
       app: nationalparks-live
-      type: parksmap-backend
     name: nationalparks-live
     annotations:
       service.alpha.openshift.io/dependencies: '[{"name":"mongodb-live","namespace":"","kind":"Service"}]'
@@ -638,6 +637,7 @@ objects:
     annotations:
     labels:
       app: nationalparks-live
+      type: parksmap-backend
     name: nationalparks-live
   spec:
     to:

@@ -548,7 +548,8 @@
       "metadata": {
         "name": "${APPLICATION_NAME}",
         "labels": {
-          "component": "${APPLICATION_NAME}"
+          "component": "${APPLICATION_NAME}",
+          "type": "parksmap-backend"
         }
       },
       "spec": {
