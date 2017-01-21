@@ -106,6 +106,8 @@ try { // Use a try block to perform cleanup in a finally block when the build fa
       } else {
         sh "oc process -f ose3/pipeline-application-template.json -n ${project} | oc apply -f - -n ${project}"
       }
+      // sleep a bit to allow the imagestreams to be populated before we move on to building
+      sh "sleep 30"
     }
 
     stage ('Build Image') {
