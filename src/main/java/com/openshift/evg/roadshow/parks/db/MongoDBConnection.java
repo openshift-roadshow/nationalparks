@@ -17,6 +17,8 @@ import javax.annotation.PostConstruct;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Created by jmorales on 11/08/16.
@@ -43,11 +45,27 @@ public class MongoDBConnection {
     public void initConnection() {
         String mongoHost = env.getProperty("mongodb.server.host", "127.0.0.1"); // env var MONGODB_SERVER_HOST takes precedence
         String mongoPort = env.getProperty("mongodb.server.port", "27017"); // env var MONGODB_SERVER_PORT takes precedence
+        String mongoUri = env.getProperty("uri", "");
         String mongoUser = env.getProperty("mongodb.user", "mongodb"); // env var MONGODB_USER takes precedence
         String mongoPassword = env.getProperty("mongodb.password", "mongodb"); // env var MONGODB_PASSWORD takes precedence
         String mongoDBName = env.getProperty("mongodb.database", "mongodb"); // env var MONGODB_DATABASE takes precedence
 
         try {
+        	// If mongoUri is set, we use this, else, we use mongoHost and mongoPort
+        	// This will come in this form (mongodb://127.0.0.1:27017)
+        	if (mongoUri!=null && ! "".equals(mongoUri)){
+        		Pattern pattern = Pattern.compile("mongodb?://([^:^/]*):?(\\d*)?");
+        		Matcher matcher = pattern.matcher(mongoUri);
+        		if (matcher.find()){
+        			mongoHost = matcher.group(1);
+        			mongoPort = matcher.group(2);
+        			// We assume all information comes in the binding format
+        	        mongoUser = env.getProperty("username", "mongodb");
+        	        mongoPassword = env.getProperty("password", "mongodb");
+        	        mongoDBName = env.getProperty("database_name", "mongodb");       			
+        		}
+        	}
+        	
             String mongoURI = "mongodb://" + mongoUser + ":" + mongoPassword + "@" + mongoHost + ":" + mongoPort + "/" + mongoDBName;
             System.out.println("[INFO] Connection string: " + mongoURI);
             MongoClient mongoClient = new MongoClient(new MongoClientURI(mongoURI));
@@ -274,4 +292,27 @@ public class MongoDBConnection {
         }
         return parks;
     }
+    
+    
+//    public static void splitUsingRegex(String url) {
+//        System.out.println("Split URL example using regex");
+//        System.out.println();
+//        Pattern pattern = Pattern.compile("mongodb?://([^:^/]*):?(\\d*)?/?(.*)?");
+//        Matcher matcher = pattern.matcher(url);
+//        matcher.find();
+//        
+//        String domain = matcher.group(1);
+//        String port = matcher.group(2);
+//        String uri = matcher.group(3);
+//        System.out.println(url);
+//        System.out.println("domain: " + (domain != null ? domain : ""));
+//        System.out.println("port: " + (port != null ? port : ""));
+//        System.out.println("uri: " + (uri != null ? uri : ""));
+//        System.out.println();
+//    }
+//    
+//    public static void main(String[] args) {
+//		MongoDBConnection.splitUsingRegex("mongodb://172.30.253.157:27017");
+//		MongoDBConnection.splitUsingRegex("mongodb://172.30.253.157:27017/exampledb");
+//	}
 }
