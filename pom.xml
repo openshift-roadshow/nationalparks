@@ -18,6 +18,24 @@
         <springboot.version>1.4.0.RELEASE</springboot.version>
     </properties>
 
+    <scm>
+      <connection>scm:git:${SCM_GIT_URL}</connection>
+      <developerConnection>scm:git:${SCM_GIT_URL}</developerConnection>
+    </scm>
+
+    <distributionManagement>
+      <repository>
+          <id>nexus</id>
+          <name>Releases</name>
+          <url>${NEXUS_URL}/repository/maven-releases</url>
+      </repository>
+      <snapshotRepository>
+          <id>nexus</id>
+          <name>Snapshots</name>
+          <url>${NEXUS_URL}/repository/maven-snapshots</url>
+      </snapshotRepository>
+    </distributionManagement>
+
     <dependencies>
         <dependency>
             <groupId>org.mongodb</groupId>
