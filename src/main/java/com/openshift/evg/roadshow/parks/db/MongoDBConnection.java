@@ -49,6 +49,7 @@ public class MongoDBConnection {
         String mongoUser = env.getProperty("mongodb.user", "mongodb"); // env var MONGODB_USER takes precedence
         String mongoPassword = env.getProperty("mongodb.password", "mongodb"); // env var MONGODB_PASSWORD takes precedence
         String mongoDBName = env.getProperty("mongodb.database", "mongodb"); // env var MONGODB_DATABASE takes precedence
+        String dbServiceName = env.getProperty("database.service.name", "");
 
         try {
         	// If mongoUri is set, we use this, else, we use mongoHost and mongoPort
@@ -64,7 +65,9 @@ public class MongoDBConnection {
         	        mongoPassword = env.getProperty("password", "mongodb");
         	        mongoDBName = env.getProperty("database_name", "mongodb");       			
         		}
-        	}
+        	} else if (dbServiceName !=null && ! "".equals(dbServiceName)) {
+                mongoHost = dbServiceName;
+            }
         	
             String mongoURI = "mongodb://" + mongoUser + ":" + mongoPassword + "@" + mongoHost + ":" + mongoPort + "/" + mongoDBName;
             System.out.println("[INFO] Connection string: " + mongoURI);
