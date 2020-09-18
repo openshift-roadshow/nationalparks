@@ -1,0 +1,14 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: nationalparks-deploy-run-
+spec:
+  pipelineRef:
+    name: nationalparks-pipeline
+  workspaces:
+  - name: app-source
+    persistentVolumeClaim:
+      claimName: app-source-pvc
+  - name: maven-settings
+    emptyDir: {}
+
