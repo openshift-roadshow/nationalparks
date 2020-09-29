@@ -105,11 +105,22 @@ spec:
     - name: DEPLOYMENT_CONFIG
       type: string
       default: nationalparks
+    - default: 'nationalparks:latest'
+      name: IMAGE_STREAM
+      type: string
+  stepTemplate:
+    env:
+      - name: POD_NAMESPACE
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.namespace
   steps:
     - name: deploy
       image: image-registry.openshift-image-registry.svc:5000/openshift/cli:latest
       script: |
         #!/usr/bin/env bash
+
+        oc set image deploymentconfig/$(params.DEPLOYMENT_CONFIG) $(params.DEPLOYMENT_CONFIG)=image-registry.openshift-image-registry.svc:5000/$POD_NAMESPACE/$(params.IMAGE_STREAM)
 
         oc rollout latest dc/$(params.DEPLOYMENT_CONFIG)
 ---
@@ -189,6 +200,8 @@ spec:
       params:
         - name: DEPLOYMENT_CONFIG
           value: $(params.APP_NAME)
+        - name: IMAGE_STREAM
+          value: '$(params.APP_NAME):latest'
       runAfter:
         - build-image
       taskRef:
