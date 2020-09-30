@@ -134,7 +134,7 @@ spec:
       description: The application name
       name: APP_NAME
       type: string
-    - default: 'https://github.com/blues-man/nationalparks.git'
+    - default: 'https://github.com/openshift-roadshow/nationalparks.git'
       description: The application git repository url
       name: APP_GIT_URL
       type: string
