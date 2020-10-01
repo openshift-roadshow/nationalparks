@@ -1,0 +1,17 @@
+apiVersion: tekton.dev/v1beta1
+kind: PipelineRun
+metadata:
+  generateName: nationalparks-deploy-run-
+spec:
+  params:
+   - name: APP_GIT_URL
+     value: "https://github.com/openshift-roadshow/nationalparks.git"
+  pipelineRef:
+    name: nationalparks-pipeline
+  workspaces:
+  - name: app-source
+    persistentVolumeClaim:
+      claimName: app-source-pvc
+  - name: maven-settings
+    emptyDir: {}
+
