@@ -160,7 +160,7 @@ spec:
       workspaces:
         - name: output
           workspace: app-source
-    - name: test-and-build
+    - name: build-and-test
       params:
         - name: GOALS
           value:
@@ -186,7 +186,7 @@ spec:
         - name: OUTPUT_IMAGE_STREAM
           value: '$(params.APP_NAME):latest'
       runAfter:
-        - test-and-build
+        - build-and-test
       taskRef:
         kind: Task
         name: s2i-java-11-binary
