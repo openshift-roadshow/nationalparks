@@ -21,11 +21,11 @@ spec:
       spec:
         params:
           - name: APP_NAME
-            value: $(params.git-repo-name)
+            value: $(tt.params.git-repo-name)
           - name: APP_GIT_URL
-            value: $(params.git-repo-url)
+            value: $(tt.params.git-repo-url)
           - name: APP_GIT_REVISION
-            value: $(params.git-revision)
+            value: $(tt.params.git-revision)
         pipelineRef:
           name: nationalparks-pipeline
         workspaces:
