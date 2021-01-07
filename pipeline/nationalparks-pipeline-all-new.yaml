@@ -1,0 +1,205 @@
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: app-source-pvc
+spec:
+  resources:
+    requests:
+      storage: 1Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Recycle
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: s2i-java-11-binary
+spec:
+  params:
+    - name: PATH_CONTEXT
+      description: The location of the path to run s2i from
+      default: .
+      type: string
+    - name: TLSVERIFY
+      description: Verify the TLS on the registry endpoint (for push/pull to a non-TLS registry)
+      default: "false"
+      type: string
+    - name: OUTPUT_IMAGE_STREAM
+      type: string
+      description: The application image url in registry
+  workspaces:
+    - name: source
+  stepTemplate:
+    env:
+    - name: POD_NAMESPACE
+      valueFrom:
+        fieldRef:
+          fieldPath: metadata.namespace
+  steps:
+    - name: generate
+      image: registry.redhat.io/ocp-tools-43-tech-preview/source-to-image-rhel8
+      workingdir: $(workspaces.source.path)/target
+      command:
+        - 's2i'
+        - 'build'
+        - '$(params.PATH_CONTEXT)'
+        - 'registry.access.redhat.com/openjdk/openjdk-11-rhel7'
+        - '--image-scripts-url'
+        - 'image:///usr/local/s2i'
+        - '--as-dockerfile'
+        - '/gen-source/Dockerfile.gen'
+      volumeMounts:
+        - name: envparams
+          mountPath: /env-params
+        - name: gen-source
+          mountPath: /gen-source
+    - name: build
+      image: registry.redhat.io/rhel8/buildah
+      workingdir: /gen-source
+      command: 
+        - buildah
+        - bud
+        - --tls-verify=$(params.TLSVERIFY)
+        - --layers
+        - -f
+        - /gen-source/Dockerfile.gen
+        - -t
+        - image-registry.openshift-image-registry.svc:5000/$(POD_NAMESPACE)/$(params.OUTPUT_IMAGE_STREAM)
+        - .
+      volumeMounts:
+        - name: varlibcontainers
+          mountPath: /var/lib/containers
+        - name: gen-source
+          mountPath: /gen-source
+      securityContext:
+        privileged: true
+    - name: push
+      image: registry.redhat.io/rhel8/buildah
+      command:
+        - buildah
+        - push
+        - --tls-verify=$(params.TLSVERIFY)
+        - image-registry.openshift-image-registry.svc:5000/$(POD_NAMESPACE)/$(params.OUTPUT_IMAGE_STREAM)
+        - docker://image-registry.openshift-image-registry.svc:5000/$(POD_NAMESPACE)/$(params.OUTPUT_IMAGE_STREAM)
+      volumeMounts:
+        - name: varlibcontainers
+          mountPath: /var/lib/containers
+      securityContext:
+        privileged: true
+  volumes:
+    - name: varlibcontainers
+      emptyDir: {}
+    - name: gen-source
+      emptyDir: {}
+    - name: envparams
+      emptyDir: {}
+---
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: redeploy
+spec:
+  params:
+    - name: DEPLOYMENT
+      type: string
+      default: nationalparks
+  stepTemplate:
+    env:
+      - name: POD_NAMESPACE
+        valueFrom:
+          fieldRef:
+            fieldPath: metadata.namespace
+  steps:
+    - name: deploy
+      image: image-registry.openshift-image-registry.svc:5000/openshift/cli:latest
+      script: |
+        #!/usr/bin/env bash
+
+        oc rollout restart deployment/$(params.DEPLOYMENT)
+---
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: nationalparks-pipeline
+spec:
+  params:
+    - default: nationalparks
+      description: The application name
+      name: APP_NAME
+      type: string
+    - default: 'https://github.com/openshift-roadshow/nationalparks.git'
+      description: The application git repository url
+      name: APP_GIT_URL
+      type: string
+    - default: master
+      description: The application git repository revision
+      name: APP_GIT_REVISION
+      type: string
+  tasks:
+    - name: git-clone
+      params:
+        - name: url
+          value: $(params.APP_GIT_URL)
+        - name: revision
+          value: $(params.APP_GIT_REVISION)
+        - name: submodules
+          value: 'true'
+        - name: depth
+          value: '1'
+        - name: sslVerify
+          value: 'true'
+        - name: deleteExisting
+          value: 'true'
+      taskRef:
+        kind: ClusterTask
+        name: git-clone
+      workspaces:
+        - name: output
+          workspace: app-source
+    - name: build-and-test
+      params:
+        - name: GOALS
+          value:
+            - package
+        - name: PROXY_PROTOCOL
+          value: http
+      runAfter:
+        - git-clone
+      taskRef:
+        kind: ClusterTask
+        name: maven
+      workspaces:
+        - name: source
+          workspace: app-source
+        - name: maven-settings
+          workspace: maven-settings
+    - name: build-image
+      params:
+        - name: PATH_CONTEXT
+          value: .
+        - name: TLSVERIFY
+          value: 'false'
+        - name: OUTPUT_IMAGE_STREAM
+          value: '$(params.APP_NAME):latest'
+      runAfter:
+        - build-and-test
+      taskRef:
+        kind: Task
+        name: s2i-java-11-binary
+      workspaces:
+        - name: source
+          workspace: app-source
+    - name: redeploy
+      params:
+        - name: DEPLOYMENT
+          value: $(params.APP_NAME)
+      runAfter:
+        - build-image
+      taskRef:
+        kind: Task
+        name: redeploy
+  workspaces:
+    - name: app-source
+    - name: maven-settings
