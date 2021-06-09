@@ -52,7 +52,7 @@ spec:
     - name: build-image
       params:
         - name: IMAGE
-          value: $(params.APP_NAME):latest
+          value: image-registry.openshift-image-registry.svc:5000/$(context.pipelineRun.namespace)/$(params.APP_NAME):latest
         - name: BUILDER_IMAGE
           value: >-
             registry.redhat.io/rhel8/buildah@sha256:180c4d9849b6ab0e5465d30d4f3a77765cf0d852ca1cb1efb59d6e8c9f90d467
@@ -80,7 +80,9 @@ spec:
           value: oc $@
         - name: ARGS
           value:
-            - restart deployment/$(params.APP_NAME)
+            - rollout
+            - restart
+            - deployment/$(params.APP_NAME)
       runAfter:
         - build-image
       taskRef:
