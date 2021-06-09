@@ -1,0 +1,91 @@
+apiVersion: tekton.dev/v1beta1
+kind: Pipeline
+metadata:
+  name: nationalparks
+spec:
+  params:
+    - default: nationalparks
+      name: APP_NAME
+      type: string
+  tasks:
+    - name: git-clone
+      params:
+        - name: url
+          value: 'https://github.com/blues-man/nationalparks.git'
+        - name: revision
+          value: master
+        - name: submodules
+          value: 'true'
+        - name: depth
+          value: '1'
+        - name: sslVerify
+          value: 'true'
+        - name: deleteExisting
+          value: 'true'
+        - name: verbose
+          value: 'true'
+      taskRef:
+        kind: ClusterTask
+        name: git-clone
+      workspaces:
+        - name: output
+          workspace: app-source
+    - name: build-and-test
+      params:
+        - name: MAVEN_IMAGE
+          value: gcr.io/cloud-builders/mvn
+        - name: GOALS
+          value:
+            - package
+        - name: PROXY_PROTOCOL
+          value: http
+      runAfter:
+        - git-clone
+      taskRef:
+        kind: ClusterTask
+        name: maven
+      workspaces:
+        - name: source
+          workspace: app-source
+        - name: maven-settings
+          workspace: maven-settings
+    - name: build-image
+      params:
+        - name: IMAGE
+          value: $(params.APP_NAME):latest
+        - name: BUILDER_IMAGE
+          value: >-
+            registry.redhat.io/rhel8/buildah@sha256:180c4d9849b6ab0e5465d30d4f3a77765cf0d852ca1cb1efb59d6e8c9f90d467
+        - name: STORAGE_DRIVER
+          value: vfs
+        - name: DOCKERFILE
+          value: ./Dockerfile
+        - name: CONTEXT
+          value: .
+        - name: TLSVERIFY
+          value: 'true'
+        - name: FORMAT
+          value: oci
+      runAfter:
+        - build-and-test
+      taskRef:
+        kind: ClusterTask
+        name: buildah
+      workspaces:
+        - name: source
+          workspace: app-source
+    - name: openshift-client
+      params:
+        - name: SCRIPT
+          value: oc $@
+        - name: ARGS
+          value:
+            - restart deployment/$(params.APP_NAME)
+      runAfter:
+        - build-image
+      taskRef:
+        kind: ClusterTask
+        name: openshift-client
+  workspaces:
+    - name: app-source
+    - name: maven-settings
