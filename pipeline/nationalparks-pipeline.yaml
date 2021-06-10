@@ -1,7 +1,7 @@
 apiVersion: tekton.dev/v1beta1
 kind: Pipeline
 metadata:
-  name: nationalparks
+  name: nationalparks-pipeline
 spec:
   params:
     - default: nationalparks
@@ -11,7 +11,7 @@ spec:
     - name: git-clone
       params:
         - name: url
-          value: 'https://github.com/blues-man/nationalparks.git'
+          value: 'https://github.com/openshift-roadshow/nationalparks.git'
         - name: revision
           value: master
         - name: submodules
@@ -74,7 +74,7 @@ spec:
       workspaces:
         - name: source
           workspace: app-source
-    - name: openshift-client
+    - name: redeploy
       params:
         - name: SCRIPT
           value: oc $@
