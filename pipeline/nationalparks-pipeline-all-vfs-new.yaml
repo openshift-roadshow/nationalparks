@@ -74,6 +74,8 @@ spec:
           mountPath: /var/lib/containers
         - name: gen-source
           mountPath: /gen-source
+      securityContext:
+        privileged: true
     - name: push
       image: registry.redhat.io/rhel8/buildah
       command:
@@ -86,6 +88,8 @@ spec:
       volumeMounts:
         - name: varlibcontainers
           mountPath: /var/lib/containers
+      securityContext:
+        privileged: true
   volumes:
     - name: varlibcontainers
       emptyDir: {}

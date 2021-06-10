@@ -7,13 +7,21 @@ spec:
     - default: nationalparks
       name: APP_NAME
       type: string
+    - default: 'https://github.com/openshift-roadshow/nationalparks.git'
+      description: The application git repository url
+      name: APP_GIT_URL
+      type: string
+    - default: master
+      description: The application git repository revision
+      name: APP_GIT_REVISION
+      type: string
   tasks:
     - name: git-clone
       params:
         - name: url
-          value: 'https://github.com/openshift-roadshow/nationalparks.git'
+          value: $(params.APP_GIT_URL)
         - name: revision
-          value: master
+          value: $(params.APP_GIT_REVISION)
         - name: submodules
           value: 'true'
         - name: depth
