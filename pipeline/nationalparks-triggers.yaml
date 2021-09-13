@@ -58,7 +58,7 @@ spec:
   - bindings:
     - ref: nationalparks
     template:
-      name: nationalparks
+      ref: nationalparks
 ---
 apiVersion: route.openshift.io/v1
 kind: Route
