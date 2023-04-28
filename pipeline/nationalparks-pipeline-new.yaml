@@ -41,7 +41,7 @@ spec:
     - name: build-and-test
       params:
         - name: MAVEN_IMAGE
-          value: gcr.io/cloud-builders/mvn
+          value: gcr.io/cloud-builders/mvn:3.9.1
         - name: GOALS
           value:
             - package
