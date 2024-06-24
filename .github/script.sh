@@ -1,13 +1,70 @@
-#!/bin/bash
+name: OpenShift 
 
-app_name=$1
-image=$2
-namespace=$3
+env: 
+  IMAGE_REGISTRY: ghcr.io/${{ github.repository_owner }}
+  REGISTRY_USER: ${{ github.actor }}
+  REGISTRY_PASSWORD: ${{ github.token }}
+  APP_NAME: nationalparks
+  IMAGE_TAGS: latest ${{ github.sha }}
 
-deploy=`oc get deployment $app_name -n $namespace`
-if [[ "$?" -eq 0 ]]; then
-    oc set image deployment/$app_name $app_name=$image -n $namespace
-    oc rollout restart deployment/$app_name -n $namespace
-else
-    oc new-app $image --name $app_name -n $namespace
-fi
+  OPENSHIFT_SERVER: ${{ secrets.OPENSHIFT_SERVER }}
+  OPENSHIFT_TOKEN: ${{ secrets.OPENSHIFT_TOKEN }}
+  OPENSHIFT_NAMESPACE: "kudrabek-dev"
+
+  APP_PORT: "8080"
+
+on:
+  # https://docs.github.com/en/free-pro-team@latest/actions/reference/events-that-trigger-workflows
+  push: 
+    branches: [ master ]
+
+jobs:
+  build-and-push: 
+    name: Build and push to github container registry
+    runs-on: ubuntu-18.04
+    environment: development
+
+    outputs:
+        ROUTE: ${{ steps.deploy-and-expose.outputs.route }}
+        SELECTOR: ${{ steps.deploy-and-expose.outputs.selector }}
+
+    steps:
+    - name: Checkout
+      id: checkout
+      uses: actions/checkout@v2
+
+   # https://github.com/redhat-actions/s2i-build#readme
+    - name: S2I Build 
+      id: build_image
+      uses: redhat-actions/s2i-build@v2
+      with:
+        path_context: '.'
+        builder_image: 'registry.access.redhat.com/ubi8/openjdk-11'
+        image: ${{ env.APP_NAME }}
+        tags: ${{ env.IMAGE_TAGS }}
+
+    # https://github.com/redhat-actions/push-to-registry#readme
+    - name: Push to Registry 
+      id: push-to-registry
+      uses: redhat-actions/push-to-registry@v2
+      with:
+        image: ${{ steps.build_image.outputs.image }}
+        tags: ${{ steps.build_image.outputs.tags }}
+        registry: ${{ env.IMAGE_REGISTRY }}
+        username: ${{ env.REGISTRY_USER }}
+        password: ${{ env.REGISTRY_PASSWORD }}
+
+    # The path the image was pushed to is now stored in ${{ steps.push-to-registry.outputs.registry-path }}
+
+    # https://github.com/redhat-actions/oc-login#readme
+    - name: Log in to OpenShift 
+      uses: redhat-actions/oc-login@v1
+      with:
+        openshift_server_url: ${{ env.OPENSHIFT_SERVER }}
+        openshift_token: ${{ env.OPENSHIFT_TOKEN }}
+        insecure_skip_tls_verify: true
+        namespace: ${{ env.OPENSHIFT_NAMESPACE }}
+
+    # Run a script to create a new app or update the current one with the previously pushed container image
+    - run: | 
+         "${GITHUB_WORKSPACE}/.github/script.sh" ${{ env.APP_NAME }} ${{ env.IMAGE_REGISTRY }}/${{ steps.build_image.outputs.image }}:${{ github.sha }} ${{ env.OPENSHIFT_NAMESPACE }}
