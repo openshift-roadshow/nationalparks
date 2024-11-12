@@ -147,3 +147,4 @@ in the same project as Jenkins. This will contain the `master` branch of each pr
 to each repository will result in a new pipeline getting instantiated and a new project getting created
 for that pipeline. The GitHub PR will then include a status of the build, a link to the application preview,
 and a link to the approval page.
+

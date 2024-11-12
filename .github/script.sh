@@ -1,8 +1,8 @@
 #!/bin/bash
 
-app_name=$1
-image=$2
-namespace=$3
+app_name=nationalparks
+image=nationalparks
+namespace=manoj-singh8-dev
 
 deploy=`oc get deployment $app_name -n $namespace`
 if [[ "$?" -eq 0 ]]; then

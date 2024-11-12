@@ -1,0 +1,94 @@
+name: OpenShift Deployment and Prisma Scan
+
+on:
+  push:
+    branches: [ master]
+
+jobs:
+  build-and-deploy:
+    name: Build, Push, Deploy to OpenShift, and Scan
+    runs-on: ubuntu-22.04
+    environment: development  # Set the environment to 'development'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v2
+
+      - name: Build with Maven
+        run: mvn clean package  # Or use ./gradlew build for Gradle
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io/${{ github.repository_owner }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}  # Use environment secret
+
+      - name: Build and Push Docker Image
+        id: build-and-push
+        uses: docker/build-push-action@v4
+        with:
+          context: .
+          file: ./Dockerfile
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/nationalparks:latest
+            ghcr.io/${{ github.repository_owner }}/nationalparks:${{ github.sha }}
+          push: true
+
+  deploy:
+    name: Deploy to OpenShift and Run Prisma Scan
+    runs-on: ubuntu-latest
+    environment: development  # Set the environment to 'development'
+
+    env:
+      APP_NAME: nationalparks-new
+      IMAGE_REGISTRY: my-registry-url
+      OPENSHIFT_NAMESPACE: manoj-singh8-dev
+      OPENSHIFT_SERVER: https://api.sandbox-m3.1530.p1.openshiftapps.com:6443
+      OPENSHIFT_TOKEN: sha256~nL8HZTc43467qXnWYhYJPnAOEP0CywTJOE422kL-b3Q
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Set up OpenShift CLI
+        run: |
+          curl -LO https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable/openshift-client-linux.tar.gz
+          tar -xzf openshift-client-linux.tar.gz -C /usr/local/bin/
+          oc version
+
+      - name: Login to OpenShift
+        env:
+          OPENSHIFT_TOKEN: sha256~nL8HZTc43467qXnWYhYJPnAOEP0CywTJOE422kL-b3Q  # Use environment secret
+        run: |
+          if [ -z "$OPENSHIFT_TOKEN" ]; then
+            echo "OpenShift token is not set."
+            exit 1
+          fi
+          oc login "${{ env.OPENSHIFT_SERVER }}" --token="$OPENSHIFT_TOKEN" --insecure-skip-tls-verify
+
+      - name: Build and push image to OpenShift registry
+        run: |
+          IMAGE="${{ env.IMAGE_REGISTRY }}/${{ env.OPENSHIFT_NAMESPACE }}/${{ env.APP_NAME }}:${{ github.sha }}"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+
+      - name: Deploy to OpenShift
+        run: |
+          bash "${GITHUB_WORKSPACE}/.github/script.sh" \
+            "${{ env.APP_NAME }}" \
+            "${{ env.IMAGE_REGISTRY }}/${{ env.OPENSHIFT_NAMESPACE }}/${{ env.APP_NAME }}:${{ github.sha }}" \
+            "${{ env.OPENSHIFT_NAMESPACE }}"
+
+      - name: Prisma Cloud Scan
+        uses: PaloAltoNetworks/prisma-cloud-scan@v1
+        with:
+          pcc_console_url: ${{ secrets.PCC_CONSOLE_URL }}  # Use environment secret
+          pcc_user: ${{ secrets.PCC_USER }}                # Use environment secret
+          pcc_pass: ${{ secrets.PCC_PASS }}                # Use environment secret
+          image_name: ${{ env.IMAGE_REGISTRY }}/${{ env.APP_NAME }}:${{ github.sha }}
