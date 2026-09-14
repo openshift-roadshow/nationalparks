@@ -1,6 +1,26 @@
 = NationalParks backend application
 This application is a backend that provides geolocation information about NationalParks. The information is stored in a mongodb
 
+It is built with link:https://quarkus.io[Quarkus] and *requires Java 17 or newer*. When
+deploying from source on OpenShift, pick the `openjdk-17-ubi8` tag (or newer) of the `java`
+builder image — the previous `openjdk-11-ubi8` tag cannot run it. The Spring Boot version of
+this application is preserved on the `springboot` branch.
+
+Maven produces a single uber-jar, `target/nationalparks-runner.jar`, so that the S2I java
+builder finds exactly one artifact to run.
+
+== Endpoints
+
+|===
+| Path | Description
+
+| `/ws/info` | Backend descriptor consumed by the parksmap frontend
+| `/ws/healthz/` | Plain `OK`, used by the readiness and liveness probes
+| `/ws/data/load` | Loads the embedded dataset into MongoDB
+| `/ws/data/all` | Every park
+| `/ws/data/within` | Parks inside a bounding box (`lat1`, `lon1`, `lat2`, `lon2`)
+| `/q/health` | MicroProfile Health, added by Quarkus
+|===
 
 == Installation
 As the application needs to interact with openshift's API, you'll need to provide some permissions to the default ServiceAccount for that.

@@ -41,7 +41,7 @@ spec:
     - name: build-and-test
       params:
         - name: MAVEN_IMAGE
-          value: gcr.io/cloud-builders/mvn
+          value: maven:3.9-eclipse-temurin-17
         - name: GOALS
           value:
             - package

@@ -1,20 +1,24 @@
 package com.openshift.evg.roadshow.parks.model;
 
-import org.bson.types.ObjectId;
-import org.springframework.data.annotation.Id;
-import org.springframework.data.mongodb.core.index.Indexed;
-import org.springframework.data.mongodb.core.mapping.Document;
-
-@Document
+/**
+ * A national park, as served by /ws/data/all and /ws/data/within.
+ *
+ * The Spring Data annotations (@Document, @Id, @Indexed) were removed: Spring Data
+ * MongoDB was disabled in this application, the collection is read through the plain
+ * driver, and the "coordinates" 2d index is created by MongoDBConnection.init().
+ *
+ * "id" used to be an org.bson.types.ObjectId and was serialized by Jackson as an
+ * object of driver internals (counter, machineIdentifier, processIdentifier, ...).
+ * Those accessors no longer exist in the modern driver, so it is now the ObjectId
+ * hex string — the same shape the Javascript backend returns.
+ */
 public class Park {
 
-    @Id
-    private ObjectId id;
+    private String id;
 
     private Object toponymName;
     private Object name;
 
-    @Indexed
     private Coordinates position;
 
     private Object longitude;
@@ -26,7 +30,7 @@ public class Park {
     public Park() {
     }
 
-    public Park(ObjectId id, Object name) {
+    public Park(String id, Object name) {
         this.id = id;
         this.name = name;
     }
@@ -87,11 +91,11 @@ public class Park {
         this.countryName = countryName;
     }
 
-    public ObjectId getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(ObjectId id) {
+    public void setId(String id) {
         this.id = id;
     }
 

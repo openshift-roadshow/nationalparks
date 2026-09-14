@@ -1,20 +1,24 @@
 package com.openshift.evg.roadshow.parks.db;
 
-import com.mongodb.BasicDBObject;
-import com.mongodb.MongoClient;
-import com.mongodb.MongoClientURI;
+import com.mongodb.client.MongoClient;
+import com.mongodb.client.MongoClients;
 import com.mongodb.client.MongoCollection;
 import com.mongodb.client.MongoCursor;
 import com.mongodb.client.MongoDatabase;
 import com.openshift.evg.roadshow.parks.model.Park;
+import io.quarkus.runtime.Startup;
+import jakarta.annotation.PostConstruct;
+import jakarta.enterprise.context.ApplicationScoped;
+import jakarta.inject.Inject;
 import org.bson.Document;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.env.Environment;
-import org.springframework.core.io.ResourceLoader;
-import org.springframework.stereotype.Component;
+import org.eclipse.microprofile.config.Config;
 
-import javax.annotation.PostConstruct;
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -23,33 +27,35 @@ import java.util.regex.Pattern;
 /**
  * Created by jmorales on 11/08/16.
  */
-@Component
+@Startup
+@ApplicationScoped
 public class MongoDBConnection {
 
     private static final String FILENAME = "/nationalparks.json";
 
     private static final String COLLECTION = "nationalparks";
 
-    @Autowired
-    private ResourceLoader resourceLoader;
-
-    @Autowired
-    private Environment env;
+    @Inject
+    Config config;
 
     private MongoDatabase mongoDB = null;
 
     public MongoDBConnection() {
     }
 
+    private String getProperty(String name, String defaultValue) {
+        return config.getOptionalValue(name, String.class).orElse(defaultValue);
+    }
+
     @PostConstruct
     public void initConnection() {
-        String mongoHost = env.getProperty("mongodb.server.host", "127.0.0.1"); // env var MONGODB_SERVER_HOST takes precedence
-        String mongoPort = env.getProperty("mongodb.server.port", "27017"); // env var MONGODB_SERVER_PORT takes precedence
-        String mongoUri = env.getProperty("uri", "");
-        String mongoUser = env.getProperty("mongodb.user", "mongodb"); // env var MONGODB_USER takes precedence
-        String mongoPassword = env.getProperty("mongodb.password", "mongodb"); // env var MONGODB_PASSWORD takes precedence
-        String mongoDBName = env.getProperty("mongodb.database", "mongodb"); // env var MONGODB_DATABASE takes precedence
-        String dbServiceName = env.getProperty("database.service.name", "");
+        String mongoHost = getProperty("mongodb.server.host", "127.0.0.1"); // env var MONGODB_SERVER_HOST takes precedence
+        String mongoPort = getProperty("mongodb.server.port", "27017"); // env var MONGODB_SERVER_PORT takes precedence
+        String mongoUri = getProperty("uri", "");
+        String mongoUser = getProperty("mongodb.user", "mongodb"); // env var MONGODB_USER takes precedence
+        String mongoPassword = getProperty("mongodb.password", "mongodb"); // env var MONGODB_PASSWORD takes precedence
+        String mongoDBName = getProperty("mongodb.database", "mongodb"); // env var MONGODB_DATABASE takes precedence
+        String dbServiceName = getProperty("database.service.name", "");
 
         try {
         	// If mongoUri is set, we use this, else, we use mongoHost and mongoPort
@@ -61,17 +67,17 @@ public class MongoDBConnection {
         			mongoHost = matcher.group(1);
         			mongoPort = matcher.group(2);
         			// We assume all information comes in the binding format
-        	        mongoUser = env.getProperty("username", "mongodb");
-        	        mongoPassword = env.getProperty("password", "mongodb");
-        	        mongoDBName = env.getProperty("database_name", "mongodb");       			
+        	        mongoUser = getProperty("username", "mongodb");
+        	        mongoPassword = getProperty("password", "mongodb");
+        	        mongoDBName = getProperty("database_name", "mongodb");
         		}
         	} else if (dbServiceName !=null && ! "".equals(dbServiceName)) {
                 mongoHost = dbServiceName;
             }
-        	
+
             String mongoURI = "mongodb://" + mongoUser + ":" + mongoPassword + "@" + mongoHost + ":" + mongoPort + "/" + mongoDBName;
             System.out.println("[INFO] Connection string: " + mongoURI);
-            MongoClient mongoClient = new MongoClient(new MongoClientURI(mongoURI));
+            MongoClient mongoClient = MongoClients.create(mongoURI);
             mongoDB = mongoClient.getDatabase(mongoDBName);
         } catch (Exception e) {
             System.out.println("[ERROR] Creating the mongoDB. " + e.getMessage());
@@ -86,7 +92,7 @@ public class MongoDBConnection {
         System.out.println("[DEBUG] MongoDBConnection.loadParks()");
 
         try {
-            return loadParks(resourceLoader.getResource(ResourceLoader.CLASSPATH_URL_PREFIX + FILENAME).getInputStream());
+            return loadParks(MongoDBConnection.class.getResourceAsStream(FILENAME));
         } catch (Exception e) {
             e.printStackTrace();
             System.out.println("Error loading parks. Return empty list. " + e.getMessage());
@@ -161,7 +167,7 @@ public class MongoDBConnection {
             try {
                 mongoDB.getCollection(COLLECTION).drop();
                 mongoDB.getCollection(COLLECTION).insertMany(parks);
-                mongoDB.getCollection(COLLECTION).createIndex(new BasicDBObject().append("coordinates", "2d"));
+                mongoDB.getCollection(COLLECTION).createIndex(new Document("coordinates", "2d"));
             } catch (Exception e) {
                 System.out.println("[ERROR] Error connecting to MongoDB. " + e.getMessage());
             }
@@ -179,7 +185,7 @@ public class MongoDBConnection {
 
         if (mongoDB != null) {
             try {
-                size = mongoDB.getCollection(COLLECTION).count();
+                size = mongoDB.getCollection(COLLECTION).countDocuments();
             } catch (Exception e) {
                 System.out.println("[ERROR] Error connecting to MongoDB. " + e.getMessage());
             }
@@ -215,7 +221,7 @@ public class MongoDBConnection {
 
         if (mongoDB != null) {
             try {
-                MongoCollection parks = mongoDB.getCollection(COLLECTION);
+                MongoCollection<Document> parks = mongoDB.getCollection(COLLECTION);
                 MongoCursor<Document> cursor = parks.find().iterator();
                 try {
                     while (cursor.hasNext()) {
@@ -239,15 +245,14 @@ public class MongoDBConnection {
 
         if (mongoDB != null) {
             try {
-                MongoCollection parks = mongoDB.getCollection(COLLECTION);
-                // make the query object
-                BasicDBObject spatialQuery = new BasicDBObject();
-                ArrayList<double[]> boxList = new ArrayList<double[]>();
-                boxList.add(new double[]{new Float(lat2), new Float(lon2)});
-                boxList.add(new double[]{new Float(lat1), new Float(lon1)});
-                BasicDBObject boxQuery = new BasicDBObject();
-                boxQuery.put("$box", boxList);
-                spatialQuery.put("pos", new BasicDBObject("$within", boxQuery));
+                MongoCollection<Document> parks = mongoDB.getCollection(COLLECTION);
+                // make the query object. The corners are List<Double> and not double[]:
+                // org.bson.Document has no codec for Java arrays, only for Iterable.
+                List<List<Double>> boxList = new ArrayList<List<Double>>();
+                boxList.add(List.of((double) lat2, (double) lon2));
+                boxList.add(List.of((double) lat1, (double) lon1));
+                Document boxQuery = new Document("$box", boxList);
+                Document spatialQuery = new Document("pos", new Document("$within", boxQuery));
                 System.out.println("Using spatial query: " + spatialQuery.toString());
 
                 MongoCursor<Document> cursor = parks.find(spatialQuery).iterator();
@@ -272,13 +277,12 @@ public class MongoDBConnection {
      * @param query
      * @return
      */
-    public List<Park> getByQuery(BasicDBObject query) {
+    public List<Park> getByQuery(Document query) {
         System.out.println("[DEBUG] MongoDBConnection.getByQuery()");
         List<Park> parks = new ArrayList<Park>();
         if (mongoDB != null) {
             try {
                 MongoCursor<Document> cursor = mongoDB.getCollection(COLLECTION).find(query).iterator();
-                int i = 0;
                 try {
                     while (cursor.hasNext()) {
                         parks.add(ParkReadConverter.convert(cursor.next()));
@@ -295,27 +299,4 @@ public class MongoDBConnection {
         }
         return parks;
     }
-    
-    
-//    public static void splitUsingRegex(String url) {
-//        System.out.println("Split URL example using regex");
-//        System.out.println();
-//        Pattern pattern = Pattern.compile("mongodb?://([^:^/]*):?(\\d*)?/?(.*)?");
-//        Matcher matcher = pattern.matcher(url);
-//        matcher.find();
-//        
-//        String domain = matcher.group(1);
-//        String port = matcher.group(2);
-//        String uri = matcher.group(3);
-//        System.out.println(url);
-//        System.out.println("domain: " + (domain != null ? domain : ""));
-//        System.out.println("port: " + (port != null ? port : ""));
-//        System.out.println("uri: " + (uri != null ? uri : ""));
-//        System.out.println();
-//    }
-//    
-//    public static void main(String[] args) {
-//		MongoDBConnection.splitUsingRegex("mongodb://172.30.253.157:27017");
-//		MongoDBConnection.splitUsingRegex("mongodb://172.30.253.157:27017/exampledb");
-//	}
 }
